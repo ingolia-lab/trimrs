@@ -1,0 +1,15 @@
+
+Pipeline
+1. Quality trimming
+1. Adapter removal
+1. Filtering
+
+Use cases:
+
+1. Simple RNA-Seq, etc.
+    * Pure command line specification of adapter sequence, etc.
+    * Input and/or output may be piped
+    * Input and/or output may be compressed
+
+1. Multiplexed barcodes
+    * 

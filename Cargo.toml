@@ -1,0 +1,21 @@
+[package]
+name = "trimrs"
+version = "0.1.0"
+authors = ["Nick Ingolia <ingolia@berkeley.edu>"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1"
+toml = ">= 0.5"
+serde = { version = "1", features = ["derive"] }
+
+[profile.dev]
+opt-level = 3
+
+[lib]
+name = "trimrs"
+path = "src/trimrs/lib.rs"
+
+[[bin]]
+name = "trimrs"
+path = "src/main.rs"
