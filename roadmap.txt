@@ -1,8 +1,32 @@
 
 Pipeline
+1. Input raw read or read pair
 1. Quality trimming
 1. Adapter removal
 1. Filtering
+1. Read name modification
+1. Trimming statistics
+1. Output
+
+Read structure
+* Raw name
+* Raw sequence
+* Optionally, Raw quality
+* 5' and 3' trim boundaries
+* 5' and 3' N-mask boundaries
+* UMI positions for read name modification
+* Tags for read name modification
+* Read destination
+    * Single output
+    * Discard
+    * Too-short
+    * No-adapter
+    * Named demultiplexing
+    * Nucleotide demultiplexing (up to 4 bases)
+
+Read 1 and optional read 2
+
+Must harmonize destinations between read 1 and read 2 after processing
 
 Use cases:
 
