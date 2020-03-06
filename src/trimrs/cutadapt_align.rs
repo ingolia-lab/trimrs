@@ -433,7 +433,6 @@ impl <'a> Aligner<'a> {
                     column[0].cost = j * self.insertion_cost;                   //                     column[0].cost = j * self._insertion_cost
                 }
 
-                print!("j = {}, last = {}\n", j, last);
                 for i in 1..(last+1) {                                          //                 for i in range(1, last + 1):
                     if compare_ascii {                                          //                     if compare_ascii:
                         characters_equal =                                      //                         characters_equal = (s1[i-1] == s2[j-1])
@@ -490,7 +489,6 @@ impl <'a> Aligner<'a> {
                                 .map(|dpm| dpm.set_entry(i, j, column[i as usize].cost));
                         }
                     }
-                    print!("{}\n", self.dpmatrix.as_ref().unwrap());
                 }
                 while last >= 0 && column[last as usize].cost > k {             //                 while last >= 0 and column[last].cost > k:
                     last -= 1;                                                  //                     last -= 1
@@ -518,7 +516,7 @@ impl <'a> Aligner<'a> {
                     cost = column[m as usize].cost;                             //                     cost = column[m].cost
                     matches = column[m as usize].matches;                       //                     matches = column[m].matches
                     if length >= self.min_overlap                               //                     if length >= self._min_overlap and cost <= cur_effective_length * max_error_rate and (matches > best.matches or (matches == best.matches and cost < best.cost)):
-                        && (cost as f64) < (cur_effective_length as f64) * max_error_rate
+                        && (cost as f64) <= (cur_effective_length as f64) * max_error_rate
                         && (matches > best.matches
                             || (matches == best.matches && cost < best.cost)) {
                                                                                 //                         # update
