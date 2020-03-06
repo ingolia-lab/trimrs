@@ -19,3 +19,11 @@ path = "src/trimrs/lib.rs"
 [[bin]]
 name = "trimrs"
 path = "src/main.rs"
+
+[[bin]]
+name = "mock_align"
+path = "src/mock_align.rs"
+
+[[bin]]
+name = "commentfmt"
+path = "src/commentfmt.rs"
