@@ -574,8 +574,6 @@ impl <'a> Aligner<'a> {
                         best.origin = column[i as usize].origin;                //                     best.origin = column[i].origin
                         best.ref_stop = i;                                      //                     best.ref_stop = i
                         best.query_stop = n;                                    //                     best.query_stop = n
-                        print!("{:?}", best);
-
                     }
             }
         }
