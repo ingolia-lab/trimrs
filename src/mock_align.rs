@@ -1,3 +1,4 @@
+use trimrs::align;
 use trimrs::cutadapt_align::*;
 
 // locate(query) -> (refstart, refstop, querystart, querystop, matches, errors)
@@ -114,6 +115,19 @@ fn test_align(reference: &[u8],
                std::str::from_utf8(query).unwrap(),
                std::str::from_utf8(reference).unwrap(),
                actual);
+    }
+
+    let mut new_aligner = align::Aligner::init(reference, max_err, flags, wildcard_ref, wildcard_query, INDEL_COST, min_overlap as isize);
+    let new_actual = new_aligner.locate(query);
+    if new_actual != expected {
+        new_aligner.enable_debug();
+        new_aligner.locate(query);
+        print!("Expected {:?}\n", expected);
+        print!("Actual   {:?}\n", actual);
+        print!("New      {:?}\n", new_actual);
+        print!("{}\n", new_aligner.dpmatrix().as_ref().unwrap());
+    } else {
+        print!("No change\n");
     }
 }
 
