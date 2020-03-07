@@ -214,6 +214,8 @@ impl Aligner {
                 encode_iupac_vec(reference, &mut breference);
             } else if wildcard_query {
                 encode_acgt_vec(reference, &mut breference);
+            } else {
+                breference.make_ascii_uppercase();
             }
         }
 
@@ -245,19 +247,19 @@ impl Aligner {
     //     property dpmatrix:
     //         The dynamic programming matrix as a DPMatrix object. This attribute is
     //         usually None, unless debugging has been enabled with enable_debug().
-    pub fn dpmatrix(&self) -> &Option<DPMatrix> {                               //         def __get__(self):
-        &self.dpmatrix                                                          //             return self._dpmatrix
+    pub fn dpmatrix(&self) -> &Option<DPMatrix> {
+        &self.dpmatrix
     }
     
     ///         Store the dynamic programming matrix while running the locate() method
     ///         and make it available in the .dpmatrix attribute.
-    pub fn enable_debug(&mut self) {                                            //     def enable_debug(self):
-        self.debug = true;                                                      //         self.debug = True
+    pub fn enable_debug(&mut self) {
+        self.debug = true;
     }
 
 
 
-    pub fn locate(&mut self, query: &[u8])                                   //     def locate(self, str query):
+    pub fn locate(&mut self, query: &[u8])
                   -> Option<(isize, isize, isize, isize, isize, isize)> {
                                                                                 //         """
                                                                                 //         locate(query) -> (refstart, refstop, querystart, querystop, matches, errors)
@@ -272,66 +274,63 @@ impl Aligner {
 
                                                                                 //         The alignment itself is not returned.
                                                                                 //         """
-                                                                                //         cdef:
-        let s1 = &self.reference;                                                //             char* s1 = self._reference
-        let mut query_bytes = query.to_vec();                                   //             bytes query_bytes = query.encode('ascii')
-        let s2: &[u8];                                                          //             char* s2
+        let s1 = &self.reference;
         let m = self.m() as isize;
-        let n = query.len() as isize;                                           //             int n = len(query)
-        let column = &mut self.column;                                          //             _Entry* column = self.column  # Current column of the DP matrix
-        let max_error_rate = self.max_error_rate;                               //             double max_error_rate = self.max_error_rate
-        let stop_in_query = self.stop_in_query;                                 //             bint stop_in_query = self.stop_in_query
-        let mut compare_ascii = false;                                          //             bint compare_ascii = False
+        let n = query.len() as isize;
+        let column = &mut self.column;
+        let max_error_rate = self.max_error_rate;
+        let stop_in_query = self.stop_in_query;
         
-        if self.wildcard_query {                                                //         if self.wildcard_query:
-            encode_iupac_vec(query, &mut query_bytes);                          //             query_bytes = query_bytes.translate(IUPAC_TABLE)
-        } else if self.wildcard_ref {                                           //         elif self.wildcard_ref:
-            encode_acgt_vec(query, &mut query_bytes);                           //             query_bytes = query_bytes.translate(ACGT_TABLE)
-        } else {                                                                //         else:
-                                                                                //             # TODO Adding the .upper() increases overall runtime slightly even
-                                                                                //             # when I remove the .upper() from Adapter.match_to().
-                                                                                //             query_bytes = query_bytes.upper()
-            compare_ascii = true;                                               //             compare_ascii = True
-        }
-        s2 = &query_bytes;
-                                                                                //         s2 = query_bytes
-                                                                                //         """
-                                                                                //         DP Matrix:
-                                                                                //                    query (j)
-                                                                                //                  ----------> n
-                                                                                //                 |
-                                                                                //         ref (i) |
-                                                                                //                 |
-                                                                                //                 V
-                                                                                //                m
-                                                                                //         """
-        let mut i: isize;                                                       //         cdef int i, j
+        let compare_ascii = if self.wildcard_query {
+            encode_iupac_vec(query, &mut self.bquery);
+            false
+        } else if self.wildcard_ref {
+            encode_acgt_vec(query, &mut self.bquery);
+            false
+        } else {
+            self.bquery.clear();
+            self.bquery.extend(query.iter());
+            self.bquery.make_ascii_uppercase();
+            true
+        };
+        let s2 = &self.bquery;
+        //         DP Matrix:
+        //                    query (j)
+        //                  ----------> n
+        //                 |
+        //         ref (i) |
+        //                 |
+        //                 V
+        //                m
+        let mut i: isize;
         let mut j: isize;
         
-                                                                                //         # maximum no. of errors
-        let k = (max_error_rate * m as f64).floor() as isize;                   //         cdef int k = <int> (max_error_rate * m)
+        //         # maximum no. of errors
+        let k = (max_error_rate * m as f64).floor() as isize;
 
-                                                                                //         # Determine largest and smallest column we need to compute
-        let mut max_n = n;                                                      //         cdef int max_n = n
-        let mut min_n = 0;                                                      //         cdef int min_n = 0
-        if !self.start_in_query {                                               //         if not self.start_in_query:
-                                                                                //             # costs can only get worse after column m
-            max_n = isize::min(n, m + k);                                       //             max_n = min(n, m + k)
-        }
-        if !self.stop_in_query {                                                //         if not self.stop_in_query:
-            min_n = isize::max(0, n - m - k);                                   //             min_n = max(0, n - m - k)
-        }
+        //         # Determine largest and smallest column we need to compute
+        let max_n = if !self.start_in_query {
+            //             # costs can only get worse after column m
+            isize::min(n, m + k)
+        } else {
+            n
+        };
+        let min_n = if !self.stop_in_query {
+            isize::max(0, n - m - k)
+        } else {
+            0
+        };
         
-                                                                                //         # Fill column min_n.
-                                                                                //         #
-                                                                                //         # Four cases:
-                                                                                //         # not startin1, not startin2: c(i,j) = max(i,j); origin(i, j) = 0
-                                                                                //         #     startin1, not startin2: c(i,j) = j       ; origin(i, j) = min(0, j - i)
-                                                                                //         # not startin1,     startin2: c(i,j) = i       ; origin(i, j) =
-                                                                                //         #     startin1,     startin2: c(i,j) = min(i,j)
-
-                                                                                //         # TODO (later)
-                                                                                //         # fill out columns only until 'last'
+        //         # Fill column min_n.
+        //         #
+        //         # Four cases:
+        //         # not startin1, not startin2: c(i,j) = max(i,j); origin(i, j) = 0
+        //         #     startin1, not startin2: c(i,j) = j       ; origin(i, j) = min(0, j - i)
+        //         # not startin1,     startin2: c(i,j) = i       ; origin(i, j) =
+        //         #     startin1,     startin2: c(i,j) = min(i,j)
+        
+        //         # TODO (later)
+        //         # fill out columns only until 'last'
         if !self.start_in_reference && !self.start_in_query {                   //         if not self.start_in_reference and not self.start_in_query:
             for i in 0..(m+1) {                                                 //             for i in range(m + 1):
                 column[i as usize].matches = 0;                                 //                 column[i].matches = 0
