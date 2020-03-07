@@ -2,7 +2,7 @@ use std::default::Default;
 
 use crate::cutadapt_encode::*;
 
-// # structure for a DP matrix entry
+// Structure for a DP matrix entry
 #[derive(Clone,Copy,Debug,Default)]
 struct Entry {
   cost: isize,
@@ -20,10 +20,10 @@ struct Match {
 }
 
 ///     Representation of the dynamic-programming matrix.
-
+///
 ///     This is used only when debugging is enabled in the Aligner class since the
 ///     matrix is normally not stored in full.
-
+///
 ///     Entries in the matrix may be None, in which case that value was not
 ///     computed.
 #[derive(Clone,Debug)]
@@ -79,82 +79,81 @@ impl <'a> std::fmt::Display for DPMatrix<'a> {
     }
 }
 
-                                                                                //     """
-                                                                                //     Find a full or partial occurrence of a query string in a reference string
-                                                                                //     allowing errors (mismatches, insertions, deletions).
+///    Find a full or partial occurrence of a query string in a reference string
+///    allowing errors (mismatches, insertions, deletions).
 
-                                                                                //     By default, unit costs are used, meaning that mismatches, insertions and
-                                                                                //     deletions are counted as one error (edit distance).
+///    By default, unit costs are used, meaning that mismatches, insertions and
+///    deletions are counted as one error (edit distance).
 
-                                                                                //     Semi-global alignments allow skipping a suffix and/or prefix of query or
-                                                                                //     reference at no cost. Combining semi-global alignment with edit distance is
-                                                                                //     a bit unusual because the trivial “optimal” solution at edit distance 0
-                                                                                //     would be to skip all of the reference and all of the query, like this:
+///    Semi-global alignments allow skipping a suffix and/or prefix of query or
+///    reference at no cost. Combining semi-global alignment with edit distance is
+///    a bit unusual because the trivial “optimal” solution at edit distance 0
+///    would be to skip all of the reference and all of the query, like this:
 
-                                                                                //         REFERENCE-----
-                                                                                //         ---------QUERY
+///        REFERENCE-----
+///        ---------QUERY
 
-                                                                                //     Conceptually, the algorithm used here instead tests all possible overlaps
-                                                                                //     between the two sequences and chooses the overlap which maximizes the
-                                                                                //     number of matches in the overlapping part, while the error rate must not
-                                                                                //     go above a threshold.
+///    Conceptually, the algorithm used here instead tests all possible overlaps
+///    between the two sequences and chooses the overlap which maximizes the
+///    number of matches in the overlapping part, while the error rate must not
+///    go above a threshold.
 
-                                                                                //     TODO working here
+///    TODO working here
 
-                                                                                //     To allow skipping of a prefix of string1 at no cost, set the
-                                                                                //     START_IN_REFERENCE flag.
-                                                                                //     To allow skipping of a prefix of string2 at no cost, set the
-                                                                                //     START_IN_QUERY flag.
-                                                                                //     If both are set, a prefix of string1 or of string1 is skipped,
-                                                                                //     never both.
-                                                                                //     Similarly, set STOP_IN_REFERENCE and STOP_IN_QUERY to
-                                                                                //     allow skipping of suffixes of string1 or string2. Again, when both
-                                                                                //     flags are set, never suffixes in both strings are skipped.
-                                                                                //     If all flags are set, this results in standard semiglobal alignment.
+///    To allow skipping of a prefix of string1 at no cost, set the
+///    START_IN_REFERENCE flag.
+///    To allow skipping of a prefix of string2 at no cost, set the
+///    START_IN_QUERY flag.
+///    If both are set, a prefix of string1 or of string1 is skipped,
+///    never both.
+///    Similarly, set STOP_IN_REFERENCE and STOP_IN_QUERY to
+///    allow skipping of suffixes of string1 or string2. Again, when both
+///    flags are set, never suffixes in both strings are skipped.
+///    If all flags are set, this results in standard semiglobal alignment.
 
-                                                                                //     The skipped parts are described with two intervals (start1, stop1),
-                                                                                //     (start2, stop2).
+///    The skipped parts are described with two intervals (start1, stop1),
+///    (start2, stop2).
 
-                                                                                //     For example, an optimal semiglobal alignment of SISSI and MISSISSIPPI looks like this:
+///    For example, an optimal semiglobal alignment of SISSI and MISSISSIPPI looks like this:
 
-                                                                                //     ---SISSI---
-                                                                                //     MISSISSIPPI
+///    ```
+///    ---SISSI---
+///    MISSISSIPPI
+///    ```
 
-                                                                                //     start1, stop1 = 0, 5
-                                                                                //     start2, stop2 = 3, 8
-                                                                                //     (with zero errors)
+///    start1, stop1 = 0, 5
+///    start2, stop2 = 3, 8
+///    (with zero errors)
 
-                                                                                //     The aligned parts are string1[start1:stop1] and string2[start2:stop2].
+///    The aligned parts are string1[start1:stop1] and string2[start2:stop2].
 
-                                                                                //     The error rate is: errors / length where length is (stop1 - start1).
+///    The error rate is: errors / length where length is (stop1 - start1).
 
-                                                                                //     An optimal alignment fulfills all of these criteria:
+///    An optimal alignment fulfills all of these criteria:
 
-                                                                                //     - its error_rate is at most max_error_rate
-                                                                                //     - Among those alignments with error_rate <= max_error_rate, the alignment contains
-                                                                                //       a maximal number of matches (there is no alignment with more matches).
-                                                                                //     - If there are multiple alignments with the same no. of matches, then one that
-                                                                                //       has minimal no. of errors is chosen.
-                                                                                //     - If there are still multiple candidates, choose the alignment that starts at the
-                                                                                //       leftmost position within the read.
+///    - its error_rate is at most max_error_rate
+///    - Among those alignments with error_rate <= max_error_rate, the alignment contains
+///      a maximal number of matches (there is no alignment with more matches).
+///    - If there are multiple alignments with the same no. of matches, then one that
+///      has minimal no. of errors is chosen.
+///    - If there are still multiple candidates, choose the alignment that starts at the
+///      leftmost position within the read.
 
-                                                                                //     The alignment itself is not returned, only the tuple
-                                                                                //     (start1, stop1, start2, stop2, matches, errors), where the first four fields have the
-                                                                                //     meaning as described, matches is the number of matches and errors is the number of
-                                                                                //     errors in the alignment.
+///    The alignment itself is not returned, only the tuple
+///    (start1, stop1, start2, stop2, matches, errors), where the first four fields have the
+///    meaning as described, matches is the number of matches and errors is the number of
+///    errors in the alignment.
 
-                                                                                //     It is always the case that at least one of start1 and start2 is zero.
+///    It is always the case that at least one of start1 and start2 is zero.
 
-                                                                                //     IUPAC wildcard characters can be allowed in the reference and the query
-                                                                                //     by setting the appropriate flags.
+///    IUPAC wildcard characters can be allowed in the reference and the query
+///    by setting the appropriate flags.
 
-                                                                                //     If neither flag is set, the full ASCII alphabet is used for comparison.
-                                                                                //     If any of the flags is set, all non-IUPAC characters in the sequences
-                                                                                //     compare as 'not equal'.
-                                                                                //     """
+///    If neither flag is set, the full ASCII alphabet is used for comparison.
+///    If any of the flags is set, all non-IUPAC characters in the sequences
+///    compare as 'not equal'.
 #[derive(Clone, Debug)]
 pub struct Aligner<'a> {
-    m: isize,
     column: Vec<Entry>,
     max_error_rate: f64,
     start_in_reference: bool,
@@ -172,11 +171,15 @@ pub struct Aligner<'a> {
     breference: Vec<u8>,
     effective_length: isize,
     n_counts: Vec<isize>,
+    bquery: Vec<u8>,
 }
 
+const INIT_QUERY_LEN: usize = 256;
+
 impl <'a> Aligner<'a> {
+    pub fn m(&self) -> usize { self.reference.len() }
+    
     pub fn init(                                                                //     def __cinit__(
-                                                                                //         self,
         reference: &'a [u8],                                                    //         str reference,
         max_error_rate: f64,                                                    //         double max_error_rate,
         flags: isize,                                                           //         int flags=15,
@@ -187,7 +190,6 @@ impl <'a> Aligner<'a> {
     ) -> Self                                                                   //     ):
     {
         let mut aligner = Aligner {
-            m: 0,
             column: Vec::new(),
             max_error_rate: max_error_rate,                                     //         self.max_error_rate = max_error_rate
             start_in_reference: flags & 1 > 0,                                  //         self.start_in_reference = flags & 1
@@ -209,7 +211,9 @@ impl <'a> Aligner<'a> {
                                                                                 //         if indel_cost < 1:
                                                                                 //             raise ValueError('indel_cost must be at least 1')
             insertion_cost: indel_cost,                                         //         self._insertion_cost = indel_cost
-            deletion_cost: indel_cost, };                                       //         self._deletion_cost = indel_cost
+            deletion_cost: indel_cost,
+            bquery: Vec::with_capacity(INIT_QUERY_LEN),
+        };                                       //         self._deletion_cost = indel_cost
         aligner.set_reference(reference);
         aligner
     }
@@ -226,20 +230,19 @@ impl <'a> Aligner<'a> {
         self.column = mem;                                                      //         self.column = mem
         self.n_counts = mem_nc;                                                 //         self.n_counts = mem_nc
         self.breference = reference.to_vec();                                   //         self._reference = reference.encode('ascii')
-        self.m = reference.len() as isize;                                      //         self.m = len(reference)
-        self.effective_length = self.m;                                         //         self.effective_length = self.m
+        self.effective_length = self.m() as isize;
         let mut n_count = 0;                                                    //         n_count = 0
-        for i in 0..self.m {                                                    //         for i in range(self.m):
-            self.n_counts[i as usize] = n_count;                                //             self.n_counts[i] = n_count
-            if reference[i as usize] == b'n' || reference[i as usize] == b'N' { //             if reference[i] == 'n' or reference[i] == 'N':
+        for i in 0..self.m() {
+            self.n_counts[i] = n_count;                                //             self.n_counts[i] = n_count
+            if reference[i] == b'n' || reference[i] == b'N' { //             if reference[i] == 'n' or reference[i] == 'N':
                 n_count += 1;                                                   //                 n_count += 1
             }
-            self.n_counts[self.m as usize] = n_count;                           //         self.n_counts[self.m] = n_count
-            assert!(self.n_counts[self.m as usize] ==                           //         assert self.n_counts[self.m] == reference.count('N') + reference.count('n')
+            *self.n_counts.last_mut().unwrap() = n_count;
+            assert!(self.n_counts[self.m()] ==                           //         assert self.n_counts[self.m] == reference.count('N') + reference.count('n')
                     reference.iter().copied()
                     .filter(|&c| c == b'N' || c == b'n').count() as isize); 
             if self.wildcard_ref {                                              //         if self.wildcard_ref:
-                self.effective_length = self.m - self.n_counts[self.m as usize];//             self.effective_length = self.m - self.n_counts[self.m]
+                self.effective_length = self.m() as isize - self.n_counts[self.m()];//             self.effective_length = self.m - self.n_counts[self.m]
                 if self.effective_length == 0 {                                 //             if self.effective_length == 0:
                     panic!("Cannot have only N wildcards in the sequence");     //                 raise ValueError("Cannot have only N wildcards in the sequence")
                 }
@@ -286,7 +289,7 @@ impl <'a> Aligner<'a> {
         let s1 = self.reference;                                                //             char* s1 = self._reference
         let mut query_bytes = query.to_vec();                                   //             bytes query_bytes = query.encode('ascii')
         let s2: &[u8];                                                          //             char* s2
-        let m = self.m;                                                         //             int m = self.m
+        let m = self.m() as isize;
         let n = query.len() as isize;                                           //             int n = len(query)
         let column = &mut self.column;                                          //             _Entry* column = self.column  # Current column of the DP matrix
         let max_error_rate = self.max_error_rate;                               //             double max_error_rate = self.max_error_rate
