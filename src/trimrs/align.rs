@@ -29,20 +29,20 @@ struct Match {
 ///     Entries in the matrix may be None, in which case that value was not
 ///     computed.
 #[derive(Clone,Debug)]
-pub struct DPMatrix<'a> {
+pub struct DPMatrix {
     rows: Vec<Vec<Option<isize>>>,
-    reference: &'a [u8],
-    query: &'a [u8],
+    reference: Vec<u8>,
+    query: Vec<u8>,
 }
 
-impl <'a> DPMatrix<'a> {
-    pub fn new(reference: &'a [u8], query: &'a [u8]) -> Self {
+impl DPMatrix {
+    pub fn new(reference: &[u8], query: &[u8]) -> Self {
         let m = reference.len();
         let n = query.len();
         let rows = vec![vec![None; n+1]; m+1];
         Self { rows: rows,
-               reference: reference,
-               query: query,
+               reference: reference.to_vec(),
+               query: query.to_vec(),
         }
     }
 
@@ -53,7 +53,7 @@ impl <'a> DPMatrix<'a> {
     }
 }
 
-impl <'a> std::fmt::Display for DPMatrix<'a> {
+impl std::fmt::Display for DPMatrix {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>)
            -> std::fmt::Result {
         let headers = self.query.iter()
@@ -155,7 +155,7 @@ impl <'a> std::fmt::Display for DPMatrix<'a> {
 ///    If any of the flags is set, all non-IUPAC characters in the sequences
 ///    compare as 'not equal'.
 #[derive(Clone, Debug)]
-pub struct Aligner<'a> {
+pub struct Aligner {
     column: Vec<Entry>,
     max_error_rate: f64,
     start_in_reference: bool,
@@ -168,8 +168,8 @@ pub struct Aligner<'a> {
     wildcard_ref: bool,
     wildcard_query: bool,
     debug: bool,
-    dpmatrix: Option<DPMatrix<'a>>,
-    reference: &'a [u8],
+    dpmatrix: Option<DPMatrix>,
+    reference: Vec<u8>,
     breference: Vec<u8>,
     effective_length: isize,
     n_counts: Vec<isize>,
@@ -178,11 +178,11 @@ pub struct Aligner<'a> {
 
 const INIT_QUERY_LEN: usize = 256;
 
-impl <'a> Aligner<'a> {
+impl Aligner {
     pub fn m(&self) -> usize { self.reference.len() }
     
     pub fn new(
-        reference: &'a [u8],
+        reference: &[u8],
         max_error_rate: f64,
         flags: isize,
         wildcard_ref: bool,
@@ -232,7 +232,7 @@ impl <'a> Aligner<'a> {
             min_overlap: min_overlap,
             debug: false,
             dpmatrix: None,
-            reference: reference,
+            reference: reference.to_vec(),
             breference: breference,
             effective_length: effective_length,
             n_counts: n_counts,
@@ -257,7 +257,7 @@ impl <'a> Aligner<'a> {
 
 
 
-    pub fn locate(&mut self, query: &'a [u8])                                   //     def locate(self, str query):
+    pub fn locate(&mut self, query: &[u8])                                   //     def locate(self, str query):
                   -> Option<(isize, isize, isize, isize, isize, isize)> {
                                                                                 //         """
                                                                                 //         locate(query) -> (refstart, refstop, querystart, querystop, matches, errors)
@@ -273,7 +273,7 @@ impl <'a> Aligner<'a> {
                                                                                 //         The alignment itself is not returned.
                                                                                 //         """
                                                                                 //         cdef:
-        let s1 = self.reference;                                                //             char* s1 = self._reference
+        let s1 = &self.reference;                                                //             char* s1 = self._reference
         let mut query_bytes = query.to_vec();                                   //             bytes query_bytes = query.encode('ascii')
         let s2: &[u8];                                                          //             char* s2
         let m = self.m() as isize;
@@ -361,7 +361,7 @@ impl <'a> Aligner<'a> {
         }
 
         if self.debug {                                                         //         if self.debug:
-            let mut dpmatrix = DPMatrix::new(self.reference, query);           //             self._dpmatrix = DPMatrix(self.reference, query)
+            let mut dpmatrix = DPMatrix::new(&self.reference, query);           //             self._dpmatrix = DPMatrix(self.reference, query)
             for i in 0..(m+1) {                                                 //             for i in range(m + 1):
                 dpmatrix.set_entry(i, min_n, column[i as usize].cost);          //                 self._dpmatrix.set_entry(i, min_n, column[i].cost)
             }
