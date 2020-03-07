@@ -327,73 +327,73 @@ impl Aligner {
         
         //         # TODO (later)
         //         # fill out columns only until 'last'
-        if !self.start_in_reference && !self.start_in_query {                   //         if not self.start_in_reference and not self.start_in_query:
-            for i in 0..(m+1) {                                                 //             for i in range(m + 1):
-                column[i as usize].matches = 0;                                 //                 column[i].matches = 0
-                column[i as usize].cost =                                       //                 column[i].cost = max(i, min_n) * self._insertion_cost
+        if !self.start_in_reference && !self.start_in_query {
+            for i in 0..(m+1) {
+                column[i as usize].matches = 0;
+                column[i as usize].cost =
                     isize::max(i, min_n) * self.insertion_cost; 
-                column[i as usize].origin = 0;                                  //                 column[i].origin = 0
+                column[i as usize].origin = 0;
             }
-        } else if self.start_in_reference && !self.start_in_query {             //         elif self.start_in_reference and not self.start_in_query:
-            for i in 0..(m+1) {                                                 //             for i in range(m + 1):
-                column[i as usize].matches = 0;                                 //                 column[i].matches = 0
-                column[i as usize].cost = min_n * self.insertion_cost;          //                 column[i].cost = min_n * self._insertion_cost
-                column[i as usize].origin = isize::min(0, min_n - i);           //                 column[i].origin = min(0, min_n - i)
+        } else if self.start_in_reference && !self.start_in_query {
+            for i in 0..(m+1) {
+                column[i as usize].matches = 0;
+                column[i as usize].cost = min_n * self.insertion_cost;
+                column[i as usize].origin = isize::min(0, min_n - i);
             }
-        } else if !self.start_in_reference && self.start_in_query {             //         elif not self.start_in_reference and self.start_in_query:
-            for i in 0..(m+1) {                                                 //             for i in range(m + 1):
-                column[i as usize].matches = 0;                                 //                 column[i].matches = 0
-                column[i as usize].cost = i * self.insertion_cost;              //                 column[i].cost = i * self._insertion_cost
-                column[i as usize].origin = isize::max(0, min_n - i);           //                 column[i].origin = max(0, min_n - i)
+        } else if !self.start_in_reference && self.start_in_query {
+            for i in 0..(m+1) {
+                column[i as usize].matches = 0;
+                column[i as usize].cost = i * self.insertion_cost;
+                column[i as usize].origin = isize::max(0, min_n - i);
             }
-        } else {                                                                //         else:
-            for i in 0..(m+1) {                                                 //             for i in range(m + 1):
-                column[i as usize].matches = 0;                                 //                 column[i].matches = 0
-                column[i as usize].cost                                         //                 column[i].cost = min(i, min_n) * self._insertion_cost
+        } else {
+            for i in 0..(m+1) {
+                column[i as usize].matches = 0;
+                column[i as usize].cost
                     = isize::min(i, min_n) * self.insertion_cost; 
-                column[i as usize].origin = min_n - i;                          //                 column[i].origin = min_n - i
+                column[i as usize].origin = min_n - i;
             }
         }
 
-        if self.debug {                                                         //         if self.debug:
-            let mut dpmatrix = DPMatrix::new(&self.reference, query);           //             self._dpmatrix = DPMatrix(self.reference, query)
-            for i in 0..(m+1) {                                                 //             for i in range(m + 1):
-                dpmatrix.set_entry(i, min_n, column[i as usize].cost);          //                 self._dpmatrix.set_entry(i, min_n, column[i].cost)
+        if self.debug {
+            let mut dpmatrix = DPMatrix::new(&self.reference, query);
+            for i in 0..(m+1) {
+                dpmatrix.set_entry(i, min_n, column[i as usize].cost);
             }
             self.dpmatrix = Some(dpmatrix);
         }
         
-        let mut best = Match::default();                                        //         cdef _Match best
-        best.ref_stop = m;                                                      //         best.ref_stop = m
-        best.query_stop = n;                                                    //         best.query_stop = n
-        best.cost = m + n;                                                      //         best.cost = m + n
-        best.origin = 0;                                                        //         best.origin = 0
-        best.matches = 0;                                                       //         best.matches = 0
+        let mut best = Match::default();
+        best.ref_stop = m;
+        best.query_stop = n;
+        best.cost = m + n;
+        best.origin = 0;
+        best.matches = 0;
 
                                                                                 //         # Ukkonen's trick: index of the last cell that is at most k
-        let mut last = isize::min(m, k + 1);                                    //         cdef int last = min(m, k + 1)
-        if self.start_in_reference {                                            //         if self.start_in_reference:
-            last = m;                                                           //             last = m
+        let mut last = isize::min(m, k + 1);
+        if self.start_in_reference {
+            last = m;
         }
         
         
         //             # We keep only a single column of the DP matrix in memory.
         //             # To access the diagonal cell to the upper left,
         //             # we store it here before overwriting it.
-        let mut diag_entry;                                                     //             _Entry diag_entry
+        let mut diag_entry;
 
         {                                                                       //         with nogil:
                                                                                 //             # iterate over columns
-            for j in (min_n+1)..(max_n+1) {                                     //             for j in range(min_n + 1, max_n + 1):
+            for j in (min_n+1)..(max_n+1) {
                                                                                 //                 # remember first entry before overwriting
-                diag_entry = column[0];                                         //                 diag_entry = column[0]
+                diag_entry = column[0];
             
         
                                                                                 //                 # fill in first entry in this column
-                if self.start_in_query {                                        //                 if self.start_in_query:
-                    column[0].origin = j;                                       //                     column[0].origin = j
-                } else {                                                        //                 else:
-                    column[0].cost = j * self.insertion_cost;                   //                     column[0].cost = j * self._insertion_cost
+                if self.start_in_query {
+                    column[0].origin = j;
+                } else {
+                    column[0].cost = j * self.insertion_cost;
                 }
                 
                 for i in 1..(last+1) {
@@ -452,18 +452,18 @@ impl Aligner {
                         dpmatrix.set_entry(i, j, column[i as usize].cost);
                     }
                 }
-                while last >= 0 && column[last as usize].cost > k {             //                 while last >= 0 and column[last].cost > k:
-                    last -= 1;                                                  //                     last -= 1
+                while last >= 0 && column[last as usize].cost > k {
+                    last -= 1;
                 }
             
                                                                                 //                 # last can be -1 here, but will be incremented next.
                                                                                 //                 # TODO if last is -1, can we stop searching?
-                if last < m {                                                   //                 if last < m:
-                    last += 1;                                                  //                     last += 1
-                } else if stop_in_query {                                       //                 elif stop_in_query:
+                if last < m {
+                    last += 1;
+                } else if stop_in_query {
                                                                                 //                     # Found a match. If requested, find best match in last row.
                                                                                 //                     # length of the aligned part of the reference
-                    let length = m + isize::min(column[m as usize].origin, 0);      //                     length = m + min(column[m].origin, 0)
+                    let length = m + isize::min(column[m as usize].origin, 0);
                     let cur_effective_length = if self.wildcard_ref {
                         if length < m {
                             //                             # Recompute effective length so that it only takes into
@@ -475,21 +475,21 @@ impl Aligner {
                     } else {
                         length
                     };
-                    let cost = column[m as usize].cost;                             //                     cost = column[m].cost
-                    let matches = column[m as usize].matches;                       //                     matches = column[m].matches
-                    if length >= self.min_overlap                               //                     if length >= self._min_overlap and cost <= cur_effective_length * max_error_rate and (matches > best.matches or (matches == best.matches and cost < best.cost)):
+                    let cost = column[m as usize].cost;
+                    let matches = column[m as usize].matches;
+                    if length >= self.min_overlap
                         && (cost as f64) <= (cur_effective_length as f64) * max_error_rate
                         && (matches > best.matches
                             || (matches == best.matches && cost < best.cost)) {
                                                                                 //                         # update
-                            best.matches = matches;                             //                         best.matches = matches
-                            best.cost = cost;                                   //                         best.cost = cost
-                            best.origin = column[m as usize].origin;            //                         best.origin = column[m].origin
-                            best.ref_stop = m;                                  //                         best.ref_stop = m
-                            best.query_stop = j;                                //                         best.query_stop = j
-                            if cost == 0 && matches == m {                      //                         if cost == 0 and matches == m:
+                            best.matches = matches;
+                            best.cost = cost;
+                            best.origin = column[m as usize].origin;
+                            best.ref_stop = m;
+                            best.query_stop = j;
+                            if cost == 0 && matches == m {
                                                                                 //                             # exact match, stop early
-                                break;                                          //                             break
+                                break;
                             }
                                                                                 //                 # column finished
                         }
@@ -498,11 +498,11 @@ impl Aligner {
         }
         
     
-        if max_n == n {                                                         //         if max_n == n:
-            let first_i = if self.stop_in_reference { 0 } else { m };           //             first_i = 0 if self.stop_in_reference else m
+        if max_n == n {
+            let first_i = if self.stop_in_reference { 0 } else { m };
                                                                                 //             # search in last column # TODO last?
-            for i in first_i..(m+1) {                                           //             for i in range(first_i, m+1):
-                let length = i + isize::min(column[i as usize].origin, 0);          //                 length = i + min(column[i].origin, 0)
+            for i in first_i..(m+1) {
+                let length = i + isize::min(column[i as usize].origin, 0);
                 let cost = column[i as usize].cost;
                 let matches = column[i as usize].matches;
                 let cur_effective_length = if self.wildcard_ref {
