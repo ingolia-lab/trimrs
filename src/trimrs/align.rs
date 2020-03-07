@@ -1,5 +1,7 @@
 use std::default::Default;
 
+use anyhow::{bail,ensure,Result};
+
 use crate::cutadapt_encode::*;
 
 // Structure for a DP matrix entry
@@ -179,85 +181,70 @@ const INIT_QUERY_LEN: usize = 256;
 impl <'a> Aligner<'a> {
     pub fn m(&self) -> usize { self.reference.len() }
     
-    pub fn init(                                                                //     def __cinit__(
-        reference: &'a [u8],                                                    //         str reference,
-        max_error_rate: f64,                                                    //         double max_error_rate,
-        flags: isize,                                                           //         int flags=15,
-        wildcard_ref: bool,                                                     //         bint wildcard_ref=False,
-        wildcard_query: bool,                                                   //         bint wildcard_query=False,
-        indel_cost: isize,                                                      //         int indel_cost=1,
-        min_overlap: isize,                                                     //         int min_overlap=1,
-    ) -> Self                                                                   //     ):
+    pub fn new(
+        reference: &'a [u8],
+        max_error_rate: f64,
+        flags: isize,
+        wildcard_ref: bool,
+        wildcard_query: bool,
+        indel_cost: isize,
+        min_overlap: isize,
+    ) -> Result<Self>
     {
-        let mut aligner = Aligner {
-            column: Vec::new(),
-            max_error_rate: max_error_rate,                                     //         self.max_error_rate = max_error_rate
-            start_in_reference: flags & 1 > 0,                                  //         self.start_in_reference = flags & 1
-            start_in_query: flags & 2 > 0,                                      //         self.start_in_query = flags & 2
-            stop_in_reference: flags & 4 > 0,                                   //         self.stop_in_reference = flags & 4
-            stop_in_query: flags & 8 > 0,                                       //         self.stop_in_query = flags & 8
-            wildcard_ref: wildcard_ref,                                         //         self.wildcard_ref = wildcard_ref
-            wildcard_query: wildcard_query,                                     //         self.wildcard_query = wildcard_query
-                                                                                // ZZZ //         self._set_reference(reference)
-                                                                                //         if min_overlap < 1:
-                                                                                //             raise ValueError('min_overlap must be at least 1')
-            min_overlap: min_overlap,                                           //         self._min_overlap = min_overlap
-            debug: false,
-            dpmatrix: None,                                                     //         self._dpmatrix = None
-            reference: reference,
-            breference: Vec::with_capacity(reference.len()),
-            effective_length: 0,
-            n_counts: Vec::new(),
-                                                                                //         if indel_cost < 1:
-                                                                                //             raise ValueError('indel_cost must be at least 1')
-            insertion_cost: indel_cost,                                         //         self._insertion_cost = indel_cost
-            deletion_cost: indel_cost,
-            bquery: Vec::with_capacity(INIT_QUERY_LEN),
-        };                                       //         self._deletion_cost = indel_cost
-        aligner.set_reference(reference);
-        aligner
-    }
-    
-    fn set_reference(&mut self, reference: &'a [u8])                            //     def _set_reference(self, str reference):
-    {
+        let m = reference.len();
+        let mut n_counts = vec![0; m + 1];
+        let mut effective_length = m as isize;
+        let mut breference = reference.to_vec();
 
-        let mut mem: Vec<Entry> = vec![Default::default(); reference.len() + 1];//         mem = <_Entry*> PyMem_Realloc(self.column, (len(reference) + 1) * sizeof(_Entry))
-                                                                                //         if not mem:
-                                                                                //             raise MemoryError()
-        let mut mem_nc: Vec<isize> = vec![Default::default(); reference.len() + 1];//         mem_nc = <int*> PyMem_Realloc(self.n_counts, (len(reference) + 1) * sizeof(int))
-                                                                                //         if not mem_nc:
-                                                                                //             raise MemoryError()
-        self.column = mem;                                                      //         self.column = mem
-        self.n_counts = mem_nc;                                                 //         self.n_counts = mem_nc
-        self.breference = reference.to_vec();                                   //         self._reference = reference.encode('ascii')
-        self.effective_length = self.m() as isize;
-        let mut n_count = 0;                                                    //         n_count = 0
-        for i in 0..self.m() {
-            self.n_counts[i] = n_count;                                //             self.n_counts[i] = n_count
-            if reference[i] == b'n' || reference[i] == b'N' { //             if reference[i] == 'n' or reference[i] == 'N':
-                n_count += 1;                                                   //                 n_count += 1
+        let mut n_count = 0;
+        for i in 0..m {
+            n_counts[i] = n_count;
+            if reference[i] == b'n' || reference[i] == b'N' {
+                n_count += 1;
             }
-            *self.n_counts.last_mut().unwrap() = n_count;
-            assert!(self.n_counts[self.m()] ==                           //         assert self.n_counts[self.m] == reference.count('N') + reference.count('n')
+            *n_counts.last_mut().unwrap() = n_count;
+            assert!(n_counts[m] ==
                     reference.iter().copied()
                     .filter(|&c| c == b'N' || c == b'n').count() as isize); 
-            if self.wildcard_ref {                                              //         if self.wildcard_ref:
-                self.effective_length = self.m() as isize - self.n_counts[self.m()];//             self.effective_length = self.m - self.n_counts[self.m]
-                if self.effective_length == 0 {                                 //             if self.effective_length == 0:
-                    panic!("Cannot have only N wildcards in the sequence");     //                 raise ValueError("Cannot have only N wildcards in the sequence")
+            if wildcard_ref {
+                effective_length = m as isize - n_counts[m];
+                if effective_length == 0 {
+                    bail!("Cannot have only N wildcards in the sequence");
                 }
-                encode_iupac_vec(&self.reference, &mut self.breference);        //             self._reference = self._reference.translate(IUPAC_TABLE)
-            } else if self.wildcard_query {                                     //         elif self.wildcard_query:
-                encode_acgt_vec(&self.reference, &mut self.breference);         //             self._reference = self._reference.translate(ACGT_TABLE)
+                encode_iupac_vec(reference, &mut breference);
+            } else if wildcard_query {
+                encode_acgt_vec(reference, &mut breference);
             }
-            self.reference = reference;                                         //         self.reference = reference
         }
-    }   
-                                                                                //     property dpmatrix:
-                                                                                //         """
-                                                                                //         The dynamic programming matrix as a DPMatrix object. This attribute is
-                                                                                //         usually None, unless debugging has been enabled with enable_debug().
-                                                                                //         """
+
+        ensure!(indel_cost >= 1, "Indel cost must be at least 1");
+        ensure!(min_overlap >= 1, "Min overlap must be at least 1");
+        
+        Ok(Aligner {
+            column: vec![Entry::default(); m + 1],
+            max_error_rate: max_error_rate,
+            start_in_reference: flags & 1 > 0,
+            start_in_query: flags & 2 > 0,
+            stop_in_reference: flags & 4 > 0,
+            stop_in_query: flags & 8 > 0,
+            wildcard_ref: wildcard_ref,
+            wildcard_query: wildcard_query,
+            min_overlap: min_overlap,
+            debug: false,
+            dpmatrix: None,
+            reference: reference,
+            breference: breference,
+            effective_length: effective_length,
+            n_counts: n_counts,
+            insertion_cost: indel_cost,
+            deletion_cost: indel_cost,
+            bquery: Vec::with_capacity(INIT_QUERY_LEN),
+        })
+    }
+    
+    //     property dpmatrix:
+    //         The dynamic programming matrix as a DPMatrix object. This attribute is
+    //         usually None, unless debugging has been enabled with enable_debug().
     pub fn dpmatrix(&self) -> &Option<DPMatrix> {                               //         def __get__(self):
         &self.dpmatrix                                                          //             return self._dpmatrix
     }

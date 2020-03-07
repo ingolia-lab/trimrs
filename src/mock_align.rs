@@ -117,7 +117,7 @@ fn test_align(reference: &[u8],
                actual);
     }
 
-    let mut new_aligner = align::Aligner::init(reference, max_err, flags, wildcard_ref, wildcard_query, INDEL_COST, min_overlap as isize);
+    let mut new_aligner = align::Aligner::new(reference, max_err, flags, wildcard_ref, wildcard_query, INDEL_COST, min_overlap as isize).unwrap();
     let new_actual = new_aligner.locate(query);
     if new_actual != expected {
         new_aligner.enable_debug();
