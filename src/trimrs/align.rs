@@ -301,12 +301,12 @@ impl Aligner {
         //                 V
         //                m
         
-        //         # maximum no. of errors
+        // # maximum no. of errors
         let k = (max_error_rate * m as f64).floor() as isize;
 
-        //         # Determine largest and smallest column we need to compute
+        // # Determine largest and smallest column we need to compute
         let max_n = if !self.start_in_query {
-            //             # costs can only get worse after column m
+            // # costs can only get worse after column m
             isize::min(n, m + k)
         } else {
             n
@@ -317,16 +317,16 @@ impl Aligner {
             0
         };
         
-        //         # Fill column min_n.
-        //         #
-        //         # Four cases:
-        //         # not startin1, not startin2: c(i,j) = max(i,j); origin(i, j) = 0
-        //         #     startin1, not startin2: c(i,j) = j       ; origin(i, j) = min(0, j - i)
-        //         # not startin1,     startin2: c(i,j) = i       ; origin(i, j) =
-        //         #     startin1,     startin2: c(i,j) = min(i,j)
+        // # Fill column min_n.
+        // #
+        // # Four cases:
+        // # not startin1, not startin2: c(i,j) = max(i,j); origin(i, j) = 0
+        // #     startin1, not startin2: c(i,j) = j       ; origin(i, j) = min(0, j - i)
+        // # not startin1,     startin2: c(i,j) = i       ; origin(i, j) =
+        // #     startin1,     startin2: c(i,j) = min(i,j)
         
-        //         # TODO (later)
-        //         # fill out columns only until 'last'
+        // # TODO (later)
+        // # fill out columns only until 'last'
         if !self.start_in_reference && !self.start_in_query {
             for i in 0..(m+1) {
                 column[i as usize].matches = 0;
@@ -370,145 +370,142 @@ impl Aligner {
         best.origin = 0;
         best.matches = 0;
 
-                                                                                //         # Ukkonen's trick: index of the last cell that is at most k
+        // # Ukkonen's trick: index of the last cell that is at most k
         let mut last = isize::min(m, k + 1);
         if self.start_in_reference {
             last = m;
         }
         
         
-        //             # We keep only a single column of the DP matrix in memory.
-        //             # To access the diagonal cell to the upper left,
-        //             # we store it here before overwriting it.
+        // # We keep only a single column of the DP matrix in memory.
+        // # To access the diagonal cell to the upper left,
+        // # we store it here before overwriting it.
         let mut diag_entry;
 
-        {                                                                       //         with nogil:
-                                                                                //             # iterate over columns
-            for j in (min_n+1)..(max_n+1) {
-                                                                                //                 # remember first entry before overwriting
-                diag_entry = column[0];
+        // # iterate over columns
+        for j in (min_n+1)..(max_n+1) {
+            // # remember first entry before overwriting
+            diag_entry = column[0];
             
-        
-                                                                                //                 # fill in first entry in this column
-                if self.start_in_query {
-                    column[0].origin = j;
+            // # fill in first entry in this column
+            if self.start_in_query {
+                column[0].origin = j;
+            } else {
+                column[0].cost = j * self.insertion_cost;
+            }
+            
+            for i in 1..(last+1) {
+                let origin;
+                let cost;
+                let matches;
+                
+                let characters_equal = if compare_ascii {
+                    (s1[(i-1) as usize] == s2[(j-1) as usize])
                 } else {
-                    column[0].cost = j * self.insertion_cost;
+                    (s1[(i-1) as usize] & s2[(j-1) as usize]) != 0 
+                };
+                    
+                if characters_equal {
+                    // # If the characters match, skip computing costs for
+                    // # insertion and deletion as they are at least as high.
+                    cost = diag_entry.cost;
+                    origin = diag_entry.origin;
+                    matches = diag_entry.matches + 1;
+                } else {
+                    // # Characters do not match.
+                    let cost_diag = diag_entry.cost + 1;
+                    let cost_deletion =
+                        column[i as usize].cost + self.deletion_cost;
+                    let cost_insertion =
+                        column[(i-1) as usize].cost + self.insertion_cost; 
+                    
+                    if cost_diag <= cost_deletion
+                        && cost_diag <= cost_insertion {
+                            // # MISMATCH
+                            cost = cost_diag;
+                            origin = diag_entry.origin;
+                            matches = diag_entry.matches;
+                        } else if cost_insertion < cost_deletion {
+                            // # INSERTION
+                            cost = cost_insertion;
+                            origin = column[(i-1) as usize].origin;
+                            matches = column[(i-1) as usize].matches;
+                        } else {
+                            // # DELETION
+                            cost = cost_deletion;
+                            origin = column[i as usize].origin;
+                            matches = column[i as usize].matches;
+                        }
                 }
                 
-                for i in 1..(last+1) {
-                    let mut origin;
-                    let mut cost;
-                    let mut matches;
-
-                    let characters_equal = if compare_ascii {
-                        (s1[(i-1) as usize] == s2[(j-1) as usize])
-                    } else {
-                        (s1[(i-1) as usize] & s2[(j-1) as usize]) != 0 
-                    };
-                    
-                    if characters_equal {
-                        //                         # If the characters match, skip computing costs for
-                        //                         # insertion and deletion as they are at least as high.
-                        cost = diag_entry.cost;
-                        origin = diag_entry.origin;
-                        matches = diag_entry.matches + 1;
-                    } else {
-                        //                         # Characters do not match.
-                        let cost_diag = diag_entry.cost + 1;
-                        let cost_deletion =
-                            column[i as usize].cost + self.deletion_cost;
-                        let cost_insertion =
-                            column[(i-1) as usize].cost + self.insertion_cost; 
-
-                        if cost_diag <= cost_deletion
-                            && cost_diag <= cost_insertion {
-                                //                             # MISMATCH
-                                cost = cost_diag;
-                                origin = diag_entry.origin;
-                                matches = diag_entry.matches;
-                            } else if cost_insertion < cost_deletion {
-                                //                             # INSERTION
-                                cost = cost_insertion;
-                                origin = column[(i-1) as usize].origin;
-                                matches = column[(i-1) as usize].matches;
-                            } else {
-                                //                             # DELETION
-                                cost = cost_deletion;
-                                origin = column[i as usize].origin;
-                                matches = column[i as usize].matches;
-                            }
-                    }
-                    
-                    //                     # Remember the current cell for next iteration
-                    diag_entry = column[i as usize];
-                    
-                    column[i as usize].cost = cost;
-                    column[i as usize].origin = origin;
-                    column[i as usize].matches = matches;
+                // # Remember the current cell for next iteration
+                diag_entry = column[i as usize];
+                
+                column[i as usize].cost = cost;
+                column[i as usize].origin = origin;
+                column[i as usize].matches = matches;
+            }
+            if let Some(dpmatrix) = self.dpmatrix.as_mut() {
+                for i in 0..(last+1) {
+                    dpmatrix.set_entry(i, j, column[i as usize].cost);
                 }
-                if let Some(dpmatrix) = self.dpmatrix.as_mut() {
-                    for i in 0..(last+1) {
-                        dpmatrix.set_entry(i, j, column[i as usize].cost);
-                    }
-                }
-                while last >= 0 && column[last as usize].cost > k {
-                    last -= 1;
-                }
+            }
+            while last >= 0 && column[last as usize].cost > k {
+                last -= 1;
+            }
             
-                                                                                //                 # last can be -1 here, but will be incremented next.
-                                                                                //                 # TODO if last is -1, can we stop searching?
-                if last < m {
-                    last += 1;
-                } else if stop_in_query {
-                                                                                //                     # Found a match. If requested, find best match in last row.
-                                                                                //                     # length of the aligned part of the reference
-                    let length = m + isize::min(column[m as usize].origin, 0);
-                    let cur_effective_length = if self.wildcard_ref {
-                        if length < m {
-                            //                             # Recompute effective length so that it only takes into
-                            //                             # account the matching suffix of the reference
-                            length - self.n_counts[length as usize]
-                        } else {
-                            self.effective_length
-                        }
+            // # last can be -1 here, but will be incremented next.
+            // # TODO if last is -1, can we stop searching?
+            if last < m {
+                last += 1;
+            } else if stop_in_query {
+                // # Found a match. If requested, find best match in last row.
+                // # length of the aligned part of the reference
+                let length = m + isize::min(column[m as usize].origin, 0);
+                let cur_effective_length = if self.wildcard_ref {
+                    if length < m {
+                        // # Recompute effective length so that it only takes into
+                        // # account the matching suffix of the reference
+                        length - self.n_counts[length as usize]
                     } else {
-                        length
-                    };
-                    let cost = column[m as usize].cost;
-                    let matches = column[m as usize].matches;
-                    if length >= self.min_overlap
-                        && (cost as f64) <= (cur_effective_length as f64) * max_error_rate
-                        && (matches > best.matches
-                            || (matches == best.matches && cost < best.cost)) {
-                                                                                //                         # update
-                            best.matches = matches;
-                            best.cost = cost;
-                            best.origin = column[m as usize].origin;
-                            best.ref_stop = m;
-                            best.query_stop = j;
-                            if cost == 0 && matches == m {
-                                                                                //                             # exact match, stop early
-                                break;
-                            }
-                                                                                //                 # column finished
+                        self.effective_length
+                    }
+                } else {
+                    length
+                };
+                let cost = column[m as usize].cost;
+                let matches = column[m as usize].matches;
+                if length >= self.min_overlap
+                    && (cost as f64) <= (cur_effective_length as f64) * max_error_rate
+                    && (matches > best.matches
+                        || (matches == best.matches && cost < best.cost)) {
+                        // # update
+                        best.matches = matches;
+                        best.cost = cost;
+                        best.origin = column[m as usize].origin;
+                        best.ref_stop = m;
+                        best.query_stop = j;
+                        if cost == 0 && matches == m {
+                            // # exact match, stop early
+                            break;
                         }
-                }
+                        // # column finished
+                    }
             }
         }
         
-    
         if max_n == n {
             let first_i = if self.stop_in_reference { 0 } else { m };
-                                                                                //             # search in last column # TODO last?
+
+            // # search in last column # TODO last?
             for i in first_i..(m+1) {
                 let length = i + isize::min(column[i as usize].origin, 0);
                 let cost = column[i as usize].cost;
                 let matches = column[i as usize].matches;
                 let cur_effective_length = if self.wildcard_ref {
                     if length < m {
-                        //                         # Recompute effective length so that it only takes into
-                        //                         # account the matching part of the reference
+                        // # Recompute effective length so that it only takes into
+                        // # account the matching part of the reference
                         let ref_start =
                             - isize::min(column[i as usize].origin,0);
                         assert!(0 <= ref_start);
@@ -529,7 +526,7 @@ impl Aligner {
                     && (cost as f64) <= cur_effective_length as f64 * max_error_rate
                     && (matches > best.matches
                         || (matches == best.matches && cost < best.cost)) {
-                        //                     # update best
+                        // # update best
                         best.matches = matches;
                         best.cost = cost;
                         best.origin = column[i as usize].origin;
@@ -540,9 +537,9 @@ impl Aligner {
         }
         
         if best.cost == m + n {
-            //             # best.cost was initialized with this value.
-            //             # If it is unchanged, no alignment was found that has
-            //             # an error rate within the allowed range.
+            // # best.cost was initialized with this value.
+            // # If it is unchanged, no alignment was found that has
+            // # an error rate within the allowed range.
             return None;
         }
         
@@ -555,7 +552,7 @@ impl Aligner {
             start1 = -best.origin;
             start2 = 0;
         }
-        assert!(best.ref_stop - start1 > 0);                                    //         # Do not return empty alignments.
+        assert!(best.ref_stop - start1 > 0);                                    // # Do not return empty alignments.
         return Some((start1, best.ref_stop, start2, best.query_stop,
                      best.matches, best.cost)); 
     }
