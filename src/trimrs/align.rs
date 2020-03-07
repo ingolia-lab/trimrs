@@ -258,22 +258,20 @@ impl Aligner {
     }
 
 
-
+    
+    //         locate(query) -> (refstart, refstop, querystart, querystop, matches, errors)
+    
+    //         Find the query within the reference associated with this aligner. The
+    //         intervals (querystart, querystop) and (refstart, refstop) give the
+    //         location of the match.
+    
+    //         That is, the substrings query[querystart:querystop] and
+    //         self.reference[refstart:refstop] were found to align best to each other,
+    //         with the given number of matches and the given number of errors.
+    
+    //         The alignment itself is not returned.
     pub fn locate(&mut self, query: &[u8])
                   -> Option<(isize, isize, isize, isize, isize, isize)> {
-                                                                                //         """
-                                                                                //         locate(query) -> (refstart, refstop, querystart, querystop, matches, errors)
-
-                                                                                //         Find the query within the reference associated with this aligner. The
-                                                                                //         intervals (querystart, querystop) and (refstart, refstop) give the
-                                                                                //         location of the match.
-
-                                                                                //         That is, the substrings query[querystart:querystop] and
-                                                                                //         self.reference[refstart:refstop] were found to align best to each other,
-                                                                                //         with the given number of matches and the given number of errors.
-
-                                                                                //         The alignment itself is not returned.
-                                                                                //         """
         let s1 = &self.reference;
         let m = self.m() as isize;
         let n = query.len() as isize;
@@ -302,8 +300,6 @@ impl Aligner {
         //                 |
         //                 V
         //                m
-        let mut i: isize;
-        let mut j: isize;
         
         //         # maximum no. of errors
         let k = (max_error_rate * m as f64).floor() as isize;
@@ -380,20 +376,10 @@ impl Aligner {
             last = m;                                                           //             last = m
         }
         
-                                                                                //         cdef:
-        let mut cost_diag;                                                      //             int cost_diag
-        let mut cost_deletion;                                                  //             int cost_deletion
-        let mut cost_insertion;                                                 //             int cost_insertion
-        let mut origin;                                                         //             int origin, cost, matches
-        let mut cost;
-        let mut matches;
-        let mut length;                                                         //             int length
-        let mut ref_start: isize;                                               //             int ref_start
-        let mut cur_effective_length;                                           //             int cur_effective_length
-        let mut characters_equal;                                               //             bint characters_equal
-                                                                                //             # We keep only a single column of the DP matrix in memory.
-                                                                                //             # To access the diagonal cell to the upper left,
-                                                                                //             # we store it here before overwriting it.
+        
+        //             # We keep only a single column of the DP matrix in memory.
+        //             # To access the diagonal cell to the upper left,
+        //             # we store it here before overwriting it.
         let mut diag_entry;                                                     //             _Entry diag_entry
 
         {                                                                       //         with nogil:
@@ -409,54 +395,57 @@ impl Aligner {
                 } else {                                                        //                 else:
                     column[0].cost = j * self.insertion_cost;                   //                     column[0].cost = j * self._insertion_cost
                 }
+                
+                for i in 1..(last+1) {
+                    let mut origin;
+                    let mut cost;
+                    let mut matches;
 
-                for i in 1..(last+1) {                                          //                 for i in range(1, last + 1):
-                    if compare_ascii {                                          //                     if compare_ascii:
-                        characters_equal =                                      //                         characters_equal = (s1[i-1] == s2[j-1])
-                            (s1[(i-1) as usize] == s2[(j-1) as usize]); 
-                    } else {                                                    //                     else:
-                        characters_equal =                                      //                         characters_equal = (s1[i-1] & s2[j-1]) != 0
-                            (s1[(i-1) as usize] & s2[(j-1) as usize]) != 0; 
-                    }
+                    let characters_equal = if compare_ascii {
+                        (s1[(i-1) as usize] == s2[(j-1) as usize])
+                    } else {
+                        (s1[(i-1) as usize] & s2[(j-1) as usize]) != 0 
+                    };
                     
-                    if characters_equal {                                       //                     if characters_equal:
-                                                                                //                         # If the characters match, skip computing costs for
-                                                                                //                         # insertion and deletion as they are at least as high.
-                        cost = diag_entry.cost;                                 //                         cost = diag_entry.cost
-                        origin = diag_entry.origin;                             //                         origin = diag_entry.origin
-                        matches = diag_entry.matches + 1;                       //                         matches = diag_entry.matches + 1
-                    } else {                                                    //                     else:
-                                                                                //                         # Characters do not match.
-                        cost_diag = diag_entry.cost + 1;                        //                         cost_diag = diag_entry.cost + 1
-                        cost_deletion =                                         //                         cost_deletion = column[i].cost + self._deletion_cost
+                    if characters_equal {
+                        //                         # If the characters match, skip computing costs for
+                        //                         # insertion and deletion as they are at least as high.
+                        cost = diag_entry.cost;
+                        origin = diag_entry.origin;
+                        matches = diag_entry.matches + 1;
+                    } else {
+                        //                         # Characters do not match.
+                        let cost_diag = diag_entry.cost + 1;
+                        let cost_deletion =
                             column[i as usize].cost + self.deletion_cost;
-                        cost_insertion =                                        //                         cost_insertion = column[i-1].cost + self._insertion_cost
+                        let cost_insertion =
                             column[(i-1) as usize].cost + self.insertion_cost; 
 
-                        if cost_diag <= cost_deletion                           //                         if cost_diag <= cost_deletion and cost_diag <= cost_insertion:
+                        if cost_diag <= cost_deletion
                             && cost_diag <= cost_insertion {
-                                                                                //                             # MISMATCH
-                                cost = cost_diag;                               //                             cost = cost_diag
-                                origin = diag_entry.origin;                     //                             origin = diag_entry.origin
-                                matches = diag_entry.matches;                   //                             matches = diag_entry.matches
-                            } else if cost_insertion < cost_deletion {          //                         elif cost_insertion <= cost_deletion:
-                                                                                //                             # INSERTION
-                                cost = cost_insertion;                          //                             cost = cost_insertion
-                                origin = column[(i-1) as usize].origin;         //                             origin = column[i-1].origin
-                                matches = column[(i-1) as usize].matches;       //                             matches = column[i-1].matches
-                            } else {                                            //                         else:
-                                                                                //                             # DELETION
-                                cost = cost_deletion;                           //                             cost = cost_deletion
-                                origin = column[i as usize].origin;             //                             origin = column[i].origin
-                                matches = column[i as usize].matches;           //                             matches = column[i].matches
+                                //                             # MISMATCH
+                                cost = cost_diag;
+                                origin = diag_entry.origin;
+                                matches = diag_entry.matches;
+                            } else if cost_insertion < cost_deletion {
+                                //                             # INSERTION
+                                cost = cost_insertion;
+                                origin = column[(i-1) as usize].origin;
+                                matches = column[(i-1) as usize].matches;
+                            } else {
+                                //                             # DELETION
+                                cost = cost_deletion;
+                                origin = column[i as usize].origin;
+                                matches = column[i as usize].matches;
                             }
                     }
-                                                                                //                     # Remember the current cell for next iteration
-                    diag_entry = column[i as usize];                            //                     diag_entry = column[i]
                     
-                    column[i as usize].cost = cost;                             //                     column[i].cost = cost
-                    column[i as usize].origin = origin;                         //                     column[i].origin = origin
-                    column[i as usize].matches = matches;                       //                     column[i].matches = matches
+                    //                     # Remember the current cell for next iteration
+                    diag_entry = column[i as usize];
+                    
+                    column[i as usize].cost = cost;
+                    column[i as usize].origin = origin;
+                    column[i as usize].matches = matches;
                 }
                 if let Some(dpmatrix) = self.dpmatrix.as_mut() {
                     for i in 0..(last+1) {
@@ -474,20 +463,20 @@ impl Aligner {
                 } else if stop_in_query {                                       //                 elif stop_in_query:
                                                                                 //                     # Found a match. If requested, find best match in last row.
                                                                                 //                     # length of the aligned part of the reference
-                    length = m + isize::min(column[m as usize].origin, 0);      //                     length = m + min(column[m].origin, 0)
-                    cur_effective_length = length;                              //                     cur_effective_length = length
-                    if self.wildcard_ref {                                      //                     if self.wildcard_ref:
-                        if length < m {                                         //                         if length < m:
-                                                                                //                             # Recompute effective length so that it only takes into
-                                                                                //                             # account the matching suffix of the reference
-                            cur_effective_length =                              //                             cur_effective_length = length - self.n_counts[length]
-                                length - self.n_counts[length as usize];
-                        } else {                                                //                         else:
-                            cur_effective_length = self.effective_length;       //                             cur_effective_length = self.effective_length
+                    let length = m + isize::min(column[m as usize].origin, 0);      //                     length = m + min(column[m].origin, 0)
+                    let cur_effective_length = if self.wildcard_ref {
+                        if length < m {
+                            //                             # Recompute effective length so that it only takes into
+                            //                             # account the matching suffix of the reference
+                            length - self.n_counts[length as usize]
+                        } else {
+                            self.effective_length
                         }
-                    }
-                    cost = column[m as usize].cost;                             //                     cost = column[m].cost
-                    matches = column[m as usize].matches;                       //                     matches = column[m].matches
+                    } else {
+                        length
+                    };
+                    let cost = column[m as usize].cost;                             //                     cost = column[m].cost
+                    let matches = column[m as usize].matches;                       //                     matches = column[m].matches
                     if length >= self.min_overlap                               //                     if length >= self._min_overlap and cost <= cur_effective_length * max_error_rate and (matches > best.matches or (matches == best.matches and cost < best.cost)):
                         && (cost as f64) <= (cur_effective_length as f64) * max_error_rate
                         && (matches > best.matches
@@ -513,62 +502,61 @@ impl Aligner {
             let first_i = if self.stop_in_reference { 0 } else { m };           //             first_i = 0 if self.stop_in_reference else m
                                                                                 //             # search in last column # TODO last?
             for i in first_i..(m+1) {                                           //             for i in range(first_i, m+1):
-                length = i + isize::min(column[i as usize].origin, 0);          //                 length = i + min(column[i].origin, 0)
-                cost = column[i as usize].cost;                                 //                 cost = column[i].cost
-                matches = column[i as usize].matches;                           //                 matches = column[i].matches
-                if self.wildcard_ref {                                          //                 if self.wildcard_ref:
-                    if length < m {                                             //                     if length < m:
-                                                                                //                         # Recompute effective length so that it only takes into
-                                                                                //                         # account the matching part of the reference
-                        ref_start =                                             //                         ref_start = -min(column[i].origin, 0)
+                let length = i + isize::min(column[i as usize].origin, 0);          //                 length = i + min(column[i].origin, 0)
+                let cost = column[i as usize].cost;
+                let matches = column[i as usize].matches;
+                let cur_effective_length = if self.wildcard_ref {
+                    if length < m {
+                        //                         # Recompute effective length so that it only takes into
+                        //                         # account the matching part of the reference
+                        let ref_start =
                             - isize::min(column[i as usize].origin,0);
-                        assert!(0 <= ref_start);                                //                         assert 0 <= ref_start <= m
+                        assert!(0 <= ref_start);
                         assert!(ref_start <= m);
-                        cur_effective_length =                                  //                         cur_effective_length = length - (self.n_counts[i] - self.n_counts[ref_start])
-                            length - (self.n_counts[i as usize] - self.n_counts[ref_start as usize]);
-                    } else {                                                    //                     else:
-                        cur_effective_length = self.effective_length;           //                         cur_effective_length = self.effective_length
+                        length - (self.n_counts[i as usize] - self.n_counts[ref_start as usize])
+                    } else {
+                        self.effective_length
                     }
-                } else {                                                        //                 else:
-                    cur_effective_length = length;                              //                     cur_effective_length = length
-                }
+                } else {
+                    length
+                };
             
-                assert!(0 <= cur_effective_length);                             //                 assert 0 <= cur_effective_length and cur_effective_length <= length
+                assert!(0 <= cur_effective_length);
                 assert!(cur_effective_length <= length);
-                assert!(cur_effective_length <= self.effective_length);         //                 assert cur_effective_length <= self.effective_length
+                assert!(cur_effective_length <= self.effective_length);
 
-                if length >= self.min_overlap                                   //                 if length >= self._min_overlap and cost <= cur_effective_length * max_error_rate and (matches > best.matches or (matches == best.matches and cost < best.cost)):
+                if length >= self.min_overlap
                     && (cost as f64) <= cur_effective_length as f64 * max_error_rate
                     && (matches > best.matches
                         || (matches == best.matches && cost < best.cost)) {
-                                                                                //                     # update best
-                        best.matches = matches;                                 //                     best.matches = matches
-                        best.cost = cost;                                       //                     best.cost = cost
-                        best.origin = column[i as usize].origin;                //                     best.origin = column[i].origin
-                        best.ref_stop = i;                                      //                     best.ref_stop = i
-                        best.query_stop = n;                                    //                     best.query_stop = n
+                        //                     # update best
+                        best.matches = matches;
+                        best.cost = cost;
+                        best.origin = column[i as usize].origin;
+                        best.ref_stop = i;
+                        best.query_stop = n;
                     }
             }
         }
         
-        if best.cost == m + n {                                                 //         if best.cost == m + n:
-                                                                                //             # best.cost was initialized with this value.
-                                                                                //             # If it is unchanged, no alignment was found that has
-                                                                                //             # an error rate within the allowed range.
-            return None;                                                        //             return None
+        if best.cost == m + n {
+            //             # best.cost was initialized with this value.
+            //             # If it is unchanged, no alignment was found that has
+            //             # an error rate within the allowed range.
+            return None;
         }
         
-        let start1;                                                             //         cdef int start1, start2
+        let start1;
         let start2;
-        if best.origin >= 0 {                                                   //         if best.origin >= 0:
-            start1 = 0;                                                         //             start1 = 0
-            start2 = best.origin;                                               //             start2 = best.origin
-        } else {                                                                //         else:
-            start1 = -best.origin;                                              //             start1 = -best.origin
-            start2 = 0;                                                         //             start2 = 0
+        if best.origin >= 0 {
+            start1 = 0;
+            start2 = best.origin;
+        } else {
+            start1 = -best.origin;
+            start2 = 0;
         }
-        assert!(best.ref_stop - start1 > 0);                                    //         assert best.ref_stop - start1 > 0  # Do not return empty alignments.
-        return Some((start1, best.ref_stop, start2, best.query_stop,            //         return (start1, best.ref_stop, start2, best.query_stop, best.matches, best.cost)
+        assert!(best.ref_stop - start1 > 0);                                    //         # Do not return empty alignments.
+        return Some((start1, best.ref_stop, start2, best.query_stop,
                      best.matches, best.cost)); 
     }
 }
