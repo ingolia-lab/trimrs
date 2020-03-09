@@ -244,21 +244,21 @@ impl <'a> Aligner<'a> {
             if reference[i as usize] == b'n' || reference[i as usize] == b'N' { //             if reference[i] == 'n' or reference[i] == 'N':
                 n_count += 1;                                                   //                 n_count += 1
             }
-            self.n_counts[self.m as usize] = n_count;                           //         self.n_counts[self.m] = n_count
-            assert!(self.n_counts[self.m as usize] ==                           //         assert self.n_counts[self.m] == reference.count('N') + reference.count('n')
-                    reference.iter().copied()
-                    .filter(|&c| c == b'N' || c == b'n').count() as isize); 
-            if self.wildcard_ref {                                              //         if self.wildcard_ref:
-                self.effective_length = self.m - self.n_counts[self.m as usize];//             self.effective_length = self.m - self.n_counts[self.m]
-                if self.effective_length == 0 {                                 //             if self.effective_length == 0:
-                    panic!("Cannot have only N wildcards in the sequence");     //                 raise ValueError("Cannot have only N wildcards in the sequence")
-                }
-                encode_iupac_vec(&self.reference, &mut self.breference);        //             self._reference = self._reference.translate(IUPAC_TABLE)
-            } else if self.wildcard_query {                                     //         elif self.wildcard_query:
-                encode_acgt_vec(&self.reference, &mut self.breference);         //             self._reference = self._reference.translate(ACGT_TABLE)
-            }
-            self.reference = reference;                                         //         self.reference = reference
         }
+        self.n_counts[self.m as usize] = n_count;                               //         self.n_counts[self.m] = n_count
+        assert_eq!(self.n_counts[self.m as usize],                              //         assert self.n_counts[self.m] == reference.count('N') + reference.count('n')
+                   reference.iter().copied()
+                   .filter(|&c| c == b'N' || c == b'n').count() as isize); 
+        if self.wildcard_ref {                                                  //         if self.wildcard_ref:
+            self.effective_length = self.m - self.n_counts[self.m as usize];    //             self.effective_length = self.m - self.n_counts[self.m]
+            if self.effective_length == 0 {                                     //             if self.effective_length == 0:
+                panic!("Cannot have only N wildcards in the sequence");         //                 raise ValueError("Cannot have only N wildcards in the sequence")
+            }
+            encode_iupac_vec(&self.reference, &mut self.breference);            //             self._reference = self._reference.translate(IUPAC_TABLE)
+        } else if self.wildcard_query {                                         //         elif self.wildcard_query:
+            encode_acgt_vec(&self.reference, &mut self.breference);             //             self._reference = self._reference.translate(ACGT_TABLE)
+        }
+        self.reference = reference;                                         //         self.reference = reference
     }   
                                                                                 //     property dpmatrix:
                                                                                 //         """

@@ -203,26 +203,26 @@ impl Aligner {
             if reference[i] == b'n' || reference[i] == b'N' {
                 n_count += 1;
             }
-            *n_counts.last_mut().unwrap() = n_count;
-            assert!(
-                n_counts[m]
-                    == reference
-                        .iter()
-                        .copied()
-                        .filter(|&c| c == b'N' || c == b'n')
-                        .count() as isize
-            );
-            if wildcard_ref {
-                effective_length = m as isize - n_counts[m];
-                if effective_length == 0 {
-                    bail!("Cannot have only N wildcards in the sequence");
-                }
-                encode_iupac_vec(reference, &mut breference);
-            } else if wildcard_query {
-                encode_acgt_vec(reference, &mut breference);
-            } else {
-                breference.make_ascii_uppercase();
+        }
+        *n_counts.last_mut().unwrap() = n_count;
+        assert_eq!(
+            n_counts[m],
+            reference
+                .iter()
+                .copied()
+                .filter(|&c| c == b'N' || c == b'n')
+                .count() as isize
+        );
+        if wildcard_ref {
+            effective_length = m as isize - n_counts[m];
+            if effective_length == 0 {
+                bail!("Cannot have only N wildcards in the sequence");
             }
+            encode_iupac_vec(reference, &mut breference);
+        } else if wildcard_query {
+            encode_acgt_vec(reference, &mut breference);
+        } else {
+            breference.make_ascii_uppercase();
         }
 
         ensure!(indel_cost >= 1, "Indel cost must be at least 1");
