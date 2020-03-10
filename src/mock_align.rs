@@ -59,6 +59,14 @@ fn main() {
     // Apparently not biased towards match over indel at right-hand edge
     test_align_both(b"CACCA", b"GCACCTT", 0.25, true, true, true, true, false, false, 1,
                     Some((0, 5, 1, 5, 4, 1)));
+
+    // Wildcards
+    test_align_both(b"CACNA", b"GTGCACCATGT", 0.00, true, true, true, true, false, false, 1, None);
+    test_align_both(b"CACNA", b"GTGCACCATGT", 0.25, true, true, true, true, false, false, 1,
+                    Some((0, 5, 3, 8, 4, 1)));
+    test_align_both(b"CACNA", b"GTGCACCATGT", 0.00, true, true, true, true, true, false, 1,
+                    Some((0, 5, 3, 8, 5, 0)));    
+    test_align_both(b"CACNA", b"GTGCACCATGT", 0.00, true, true, true, true, false, true, 1, None);
 }
 
 const INDEL_COST: isize = 1;
@@ -97,6 +105,13 @@ fn test_align(reference: &[u8],
               min_overlap: usize,
               expected: Option<(isize, isize, isize, isize, isize, isize)>)
 {
+    print!("Aligning reference {:?} vs query {:?} error {:?} bounds {:?} wildcards {:?}\n",
+           std::str::from_utf8(reference).unwrap(),
+           std::str::from_utf8(query).unwrap(),
+           max_err,
+           (start_in_ref, start_in_query, stop_in_ref, stop_in_query),
+           (wildcard_ref, wildcard_query)
+           );
     let flags = (if start_in_ref { 1 } else { 0 })
         + (if start_in_query { 2 } else { 0 })
         + (if stop_in_ref { 4 } else { 0 })
@@ -110,11 +125,7 @@ fn test_align(reference: &[u8],
         print!("Expected {:?}\n", expected);
         print!("Actual   {:?}\n", actual);
         print!("{}\n", aligner.dpmatrix().as_ref().unwrap());
-    } else {
-        print!("Good {:?} vs {:?} => {:?}\n",
-               std::str::from_utf8(query).unwrap(),
-               std::str::from_utf8(reference).unwrap(),
-               actual);
+        print!("aligner = {:?}\n", aligner);
     }
 
     let mut new_aligner = align::Aligner::new(reference, max_err, flags, wildcard_ref, wildcard_query, INDEL_COST, min_overlap as isize).unwrap();
@@ -126,8 +137,8 @@ fn test_align(reference: &[u8],
         print!("Actual   {:?}\n", actual);
         print!("New      {:?}\n", new_actual);
         print!("{}\n", new_aligner.dpmatrix().as_ref().unwrap());
-    } else {
-        print!("No change\n");
+        print!("new_aligner = {:?}\n", new_aligner);
+        std::process::exit(1);
     }
 }
 

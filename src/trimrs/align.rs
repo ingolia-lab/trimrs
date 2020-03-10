@@ -275,7 +275,7 @@ impl Aligner {
 
     //         The alignment itself is not returned.
     pub fn locate(&mut self, query: &[u8]) -> Option<(isize, isize, isize, isize, isize, isize)> {
-        let s1 = &self.reference;
+        let s1 = &self.breference;
         let m = self.m();
         let n = query.len() as isize;
         let column = &mut self.column;
@@ -405,6 +405,10 @@ impl Aligner {
                     (s1[(i - 1) as usize] & s2[(j - 1) as usize]) != 0
                 };
 
+                // print!("s1[{}] = {} vs s2[{}] = {} with compare_ascii = {} => {}\n",
+                //        i-1, s1[(i - 1) as usize], j-1, s2[(j - 1) as usize],
+                //        compare_ascii, characters_equal);
+                
                 if characters_equal {
                     // # If the characters match, skip computing costs for
                     // # insertion and deletion as they are at least as high.

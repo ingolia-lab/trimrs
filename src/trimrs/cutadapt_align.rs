@@ -295,7 +295,7 @@ impl <'a> Aligner<'a> {
                                                                                 //         The alignment itself is not returned.
                                                                                 //         """
                                                                                 //         cdef:
-        let s1 = self.reference;                                                //             char* s1 = self._reference
+        let s1 = &self.breference;                                                //             char* s1 = self._reference
         let mut query_bytes = query.to_vec();                                   //             bytes query_bytes = query.encode('ascii')
         let s2: &[u8];                                                          //             char* s2
         let m = self.m;                                                         //             int m = self.m
