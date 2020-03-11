@@ -126,7 +126,7 @@ static NT_IUPAC: [u8; ENCODE_SIZE] =
       NT_A | NT_C | NT_G,
       NT_A | NT_T,
       NT_0,
-      NT_C | NT_G,
+      NT_C | NT_T,
       NT_0,
       NT_0, NT_0, NT_0, NT_0, NT_0,
 // 0x60
@@ -156,7 +156,7 @@ static NT_IUPAC: [u8; ENCODE_SIZE] =
       NT_A | NT_C | NT_G,
       NT_A | NT_T,
       NT_0,
-      NT_C | NT_G,
+      NT_C | NT_T,
       NT_0,
       NT_0, NT_0, NT_0, NT_0, NT_0,
 // 0x80

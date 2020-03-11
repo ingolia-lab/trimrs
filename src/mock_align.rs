@@ -67,6 +67,76 @@ fn main() {
     test_align_both(b"CACNA", b"GTGCACCATGT", 0.00, true, true, true, true, true, false, 1,
                     Some((0, 5, 3, 8, 5, 0)));    
     test_align_both(b"CACNA", b"GTGCACCATGT", 0.00, true, true, true, true, false, true, 1, None);
+
+    // IUPAC degeneracy
+    //   Reference A
+    test_align_both(b"CACACAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACBCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACCCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACDCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACGCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACHCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACTCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACUCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACVCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACRCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACYCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACWCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACSCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACMCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACKCAC", b"GTGCACACACTGT", 0.0, true, true, true, true, true, false, 1, None);
+
+    //   Reference C
+    test_align_both(b"CACBCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACACAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACDCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACCCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACGCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACHCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACTCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACUCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACVCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACYCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACRCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACSCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACWCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACMCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACKCAC", b"GTGCACCCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+
+    //   Reference G
+    test_align_both(b"CACBCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACACAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACCCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACDCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACHCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACGCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACTCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACUCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACVCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACRCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACYCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACSCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACWCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACKCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACMCAC", b"GTGCACGCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+
+    //   Reference T
+    test_align_both(b"CACBCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACACAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACCCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACDCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACGCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACHCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACVCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACTCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACUCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACYCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACRCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACWCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACSCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+    test_align_both(b"CACKCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
+    test_align_both(b"CACMCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, None);
+
 }
 
 const INDEL_COST: isize = 1;
