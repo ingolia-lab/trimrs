@@ -116,7 +116,7 @@ impl AlignMatching {
     }
 }
 
-#[derive(PartialEq,Eq,Debug,Clone)]
+#[derive(PartialEq,Eq,PartialOrd,Ord,Debug,Clone)]
 pub struct Location {
     refstart: isize,
     refstop: isize,
@@ -152,6 +152,16 @@ impl Location {
     }
 }
 
+#[derive(Clone,Debug,PartialEq,PartialOrd)]
+pub struct AlignerConf {
+    pub max_error_rate: f64,
+    pub reference_ends: AlignEnds,
+    pub query_ends: AlignEnds,
+    pub matching: AlignMatching,
+    pub indel_cost: isize,
+    pub min_overlap: isize,
+}
+    
 
 ///    Find a full or partial occurrence of a query string in a reference string
 ///    allowing errors (mismatches, insertions, deletions).
@@ -253,13 +263,8 @@ impl Aligner {
     }
 
     pub fn new(
+        conf: &AlignerConf,
         reference: &[u8],
-        max_error_rate: f64,
-        reference_ends: AlignEnds,
-        query_ends: AlignEnds,
-        matching: AlignMatching,
-        indel_cost: isize,
-        min_overlap: isize,
     ) -> Result<Self> {
         let m = reference.len();
         let mut n_counts = vec![0; m + 1];
@@ -282,7 +287,7 @@ impl Aligner {
                 .filter(|&c| c == b'N' || c == b'n')
                 .count() as isize
         );
-        match matching {
+        match conf.matching {
             AlignMatching::NoWildcard => {
                 breference.make_ascii_uppercase();
             },             
@@ -298,24 +303,24 @@ impl Aligner {
             },
         };
 
-        ensure!(indel_cost >= 1, "Indel cost must be at least 1");
-        ensure!(min_overlap >= 1, "Min overlap must be at least 1");
+        ensure!(conf.indel_cost >= 1, "Indel cost must be at least 1");
+        ensure!(conf.min_overlap >= 1, "Min overlap must be at least 1");
 
         Ok(Aligner {
             column: vec![Entry::default(); m + 1],
-            max_error_rate: max_error_rate,
-            reference_ends: reference_ends,
-            query_ends: query_ends,
-            matching: matching,
-            min_overlap: min_overlap,
+            max_error_rate: conf.max_error_rate,
+            reference_ends: conf.reference_ends,
+            query_ends: conf.query_ends,
+            matching: conf.matching,
+            min_overlap: conf.min_overlap,
             debug: false,
             dpmatrix: None,
             reference: reference.to_vec(),
             breference: breference,
             effective_length: effective_length,
             n_counts: n_counts,
-            insertion_cost: indel_cost,
-            deletion_cost: indel_cost,
+            insertion_cost: conf.indel_cost,
+            deletion_cost: conf.indel_cost,
             bquery: Vec::with_capacity(INIT_QUERY_LEN),
         })
     }

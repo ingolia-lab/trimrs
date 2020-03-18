@@ -219,7 +219,16 @@ fn test_align(reference: &[u8],
         (true, true)   => panic!("wildcards for ref and query!"),
     };
 
-    let mut new_aligner = align::Aligner::new(reference, max_err, ref_ends, query_ends, matching, INDEL_COST, min_overlap as isize).unwrap();
+    let new_aligner_conf
+        = align::AlignerConf {
+            max_error_rate: max_err,
+            reference_ends: ref_ends,
+            query_ends: query_ends,
+            matching: matching,
+            indel_cost: INDEL_COST,
+            min_overlap: min_overlap as isize,
+        };
+    let mut new_aligner = align::Aligner::new(&new_aligner_conf, reference).unwrap();
     let new_actual = new_aligner.locate(query);
 
     let new_actual_equals_expected
