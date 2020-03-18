@@ -137,6 +137,52 @@ fn main() {
     test_align_both(b"CACKCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
     test_align_both(b"CACMCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, None);
 
+    // 1, 2, 2, 1, 1, 2, 1, 2, 2, 1, 2, 2, 1, 1, 2, 1, 1, 2, 2, 1
+    
+    // Error rates
+    test_align_both(        b"CAACCACAACAACCACCAAC",
+                    b"GTGTTGTGCAACCACAACAACCACCAAC",
+                    0.0, false, true, true, false, false, false, 10,
+                            Some((0, 20, 8, 28, 20, 0)));
+    // One mismatch at position 7
+    test_align_both(        b"CAACCACAACAACCACCAAC",
+                    b"GTGTTGTGCAACCACGACAACCACCAAC",
+                    0.0, false, true, true, false, false, false, 10, None);
+    test_align_both(        b"CAACCACAACAACCACCAAC",
+                    b"GTGTTGTGCAACCACGACAACCACCAAC",
+                    0.05, false, true, true, false, false, false, 10,
+                    Some((0, 20, 8, 28, 19, 1)));
+    test_align_both(        b"CAACCACAACAACCACCAAC",
+                    b"GTGTTGTGCAACCACGACAACCACCAAC",
+                    0.1, false, true, true, false, false, false, 10,
+                    Some((0, 20, 8, 28, 19, 1)));
+    test_align_both(        b"CAACCACAACAACCACCAAC",
+                    b"GTGTTGTGCAACCACGACAACCACCAA",
+                    0.05, false, true, true, false, false, false, 10, None);
+    test_align_both(        b"CAACCACAACAACCACCAAC",
+                    b"GTGTTGTGCAACCACGACAACCACCAA",
+                    0.1, false, true, true, false, false, false, 10,
+                    Some((0, 19, 8, 27, 18, 1)));
+    test_align_both(        b"CAACCACAACAACCACCAAC",
+                    b"GTGTTGTGCAACCACGACA",
+                    0.1, false, true, true, false, false, false, 10,
+                    Some((0, 11, 8, 19, 10, 1)));
+    test_align_both(        b"CAACCACAACAACCACCAAC",
+                    b"GTGTTGTGCAACCACGAC",
+                    0.1, false, true, true, false, false, false, 10,
+                    Some((0, 10, 8, 18, 9, 1)));
+    test_align_both(        b"CAACCACAACAACCACCAAC",
+                    b"GTGTTGTGCAACCACGA",
+                    0.1, false, true, true, false, false, false, 10, None);
+
+    // Two mismatches at position 7 and 13
+    test_align_both(        b"CAACCACAACAACCACCAAC",
+                    b"GTGTTGTGCAACCACGACAACTACCAAC",
+                    0.1, false, true, true, false, false, false, 10,
+                    Some((0, 20, 8, 28, 18, 2)));
+    test_align_both(        b"CAACCACAACAACCACCAAC",
+                    b"GTGTTGTGCAACCACGACAACTACCAA",
+                    0.1, false, true, true, false, false, false, 10, None);
 }
 
 const INDEL_COST: isize = 1;
