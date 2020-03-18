@@ -1,8 +1,7 @@
 use trimrs::align;
 use trimrs::cutadapt_align::*;
 
-// locate(query) -> (refstart, refstop, querystart, querystop, matches, errors)
-
+#[rustfmt::skip]
 fn main() {
     sample_align();
     test_align_both(b"CACCA", b"GACCACCATTA",
@@ -137,8 +136,6 @@ fn main() {
     test_align_both(b"CACKCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, Some((0, 7, 3, 10, 7, 0)));
     test_align_both(b"CACMCAC", b"GTGCACTCACTGT", 0.0, true, true, true, true, true, false, 1, None);
 
-    // 1, 2, 2, 1, 1, 2, 1, 2, 2, 1, 2, 2, 1, 1, 2, 1, 1, 2, 2, 1
-    
     // Error rates
     test_align_both(        b"CAACCACAACAACCACCAAC",
                     b"GTGTTGTGCAACCACAACAACCACCAAC",
@@ -175,14 +172,41 @@ fn main() {
                     b"GTGTTGTGCAACCACGA",
                     0.1, false, true, true, false, false, false, 10, None);
 
-    // Two mismatches at position 7 and 13
+    // Two mismatches (7 and 13) out of 20 at 0.1 error rate
     test_align_both(        b"CAACCACAACAACCACCAAC",
                     b"GTGTTGTGCAACCACGACAACTACCAAC",
                     0.1, false, true, true, false, false, false, 10,
                     Some((0, 20, 8, 28, 18, 2)));
+    // Two mismatches (7 and 13) out of 19 at 0.1 error rate, no match
     test_align_both(        b"CAACCACAACAACCACCAAC",
                     b"GTGTTGTGCAACCACGACAACTACCAA",
                     0.1, false, true, true, false, false, false, 10, None);
+
+    // Wildcard -- asymmetric reference versus query
+    //   1 mismatch in 20 at 0.05 error rate
+    test_align(        b"CAACCACAACAACCACCAAC",
+               b"GTGTTGTGCAACCACGACAACCACCAAC",
+               0.05, false, true, true, false, true, false, 10,
+               Some((0, 20, 8, 28, 19, 1)));
+    //   1 mismatch in 20 but reference N so 1/19
+    test_align(        b"CAACCACAACAACCACNAAC",
+               b"GTGTTGTGCAACCACGACAACCACCAAC",
+               0.05, false, true, true, false, true, false, 10, None);
+    //   1 mismatch in 20 and reference Y (not N) so 1/20
+    test_align(        b"CAACCACAACAACCACYAAC",
+               b"GTGTTGTGCAACCACGACAACCACCAAC",
+               0.05, false, true, true, false, true, false, 10,
+               Some((0, 20, 8, 28, 19, 1)));
+    //   1 mismatch in 20 and N in query so 1/20
+    test_align(        b"CAACCACAACAACCACCAAC",
+               b"GTGTTGTGCAACCACGACAACNACCAAC",
+               0.05, false, true, true, false, false, true, 10,
+               Some((0, 20, 8, 28, 19, 1)));
+    //   1 mismatch in 21 and reference N so 1/20, matches
+    test_align(        b"CAACCACAACAACCACNAACC",
+               b"GTGTTGTGCAACCACGACAACCACCAACC",
+               0.05, false, true, true, false, true, false, 10,
+               Some((0, 21, 8, 29, 20, 1)));   
 }
 
 const INDEL_COST: isize = 1;
@@ -265,6 +289,7 @@ fn test_align(reference: &[u8],
         (true, true)   => panic!("wildcards for ref and query!"),
     };
 
+    // locate(query) -> (refstart, refstop, querystart, querystop, matches, errors)
     let new_aligner_conf
         = align::AlignerConf {
             max_error_rate: max_err,

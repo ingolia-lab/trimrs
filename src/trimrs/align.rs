@@ -116,6 +116,12 @@ impl AlignMatching {
     }
 }
 
+/// Parameters of an [`Aligner`](struct.Aligner.html) match. The
+/// alignment itself is not computed, only the starting and stopping
+/// positions, along with the number of matches and errors. Alignment
+/// positions are reported in Rust coordinate conventions, with
+/// _start_ as the first position in the alignment and _stop_ not
+/// included, i.e., _start_ to (_stop_-1) inclusive.
 #[derive(PartialEq,Eq,PartialOrd,Ord,Debug,Clone)]
 pub struct Location {
     refstart: isize,
@@ -127,18 +133,24 @@ pub struct Location {
 }
 
 impl Location {
+    /// Starting position on reference sequence
     pub fn refstart(&self) -> isize {
         self.refstart
     }
 
+    /// Stopping position on reference sequence, as a half-open
+    /// interval, i.e., alignment does not include this position.
     pub fn refstop(&self) -> isize {
         self.refstop
     }
 
+    /// Starting position on the query sequence
     pub fn querystart(&self) -> isize {
         self.querystart
     }
 
+    /// Stopping position on the query sequence, as a half-open
+    /// interval, i.e., alignment does not include this position.
     pub fn querystop(&self) -> isize {
         self.querystop
     }
@@ -152,90 +164,102 @@ impl Location {
     }
 }
 
+/// Configuration structure for `Aligner`.
+///
+/// Alignment parameters are named fields in the structure.
 #[derive(Clone,Debug,PartialEq,PartialOrd)]
 pub struct AlignerConf {
+    /// Maximum error rate
     pub max_error_rate: f64,
+
+    /// Start and/or end gaps in the reference sequence
     pub reference_ends: AlignEnds,
+
+    /// Start and/or end gaps in the query sequence
     pub query_ends: AlignEnds,
+
+    /// Use IUPAC wildcards in reference or query
     pub matching: AlignMatching,
+
+    /// Cost of insertion or deletion
     pub indel_cost: isize,
+
+    /// Minimum overlap to report a match
     pub min_overlap: isize,
 }
     
 
 ///    Find a full or partial occurrence of a query string in a reference string
 ///    allowing errors (mismatches, insertions, deletions).
-
-///    By default, unit costs are used, meaning that mismatches, insertions and
-///    deletions are counted as one error (edit distance).
-
+///
+///
+///    Mismatches are counted as one error, and insertions and
+///    deletions are counted as one or mor errors.
+///
 ///    Semi-global alignments allow skipping a suffix and/or prefix of query or
 ///    reference at no cost. Combining semi-global alignment with edit distance is
 ///    a bit unusual because the trivial “optimal” solution at edit distance 0
 ///    would be to skip all of the reference and all of the query, like this:
-
+///
+///    ```
 ///        REFERENCE-----
 ///        ---------QUERY
-
+///    ```
+///
 ///    Conceptually, the algorithm used here instead tests all possible overlaps
 ///    between the two sequences and chooses the overlap which maximizes the
 ///    number of matches in the overlapping part, while the error rate must not
 ///    go above a threshold.
-
-///    TODO working here
-
-///    To allow skipping of a prefix of string1 at no cost, set the
-///    START_IN_REFERENCE flag.
-///    To allow skipping of a prefix of string2 at no cost, set the
-///    START_IN_QUERY flag.
-///    If both are set, a prefix of string1 or of string1 is skipped,
-///    never both.
-///    Similarly, set STOP_IN_REFERENCE and STOP_IN_QUERY to
-///    allow skipping of suffixes of string1 or string2. Again, when both
-///    flags are set, never suffixes in both strings are skipped.
-///    If all flags are set, this results in standard semiglobal alignment.
-
-///    The skipped parts are described with two intervals (start1, stop1),
-///    (start2, stop2).
-
+///
+///    The `reference_ends` and `query_ends` parameters control
+///    whether prefixes and suffixes are skipped. If both are set to
+///    `LocalStart` or `Local`, allowing prefixes to be skipped at no
+///    cost, then a prefix of _either_ `reference` _or_ `query` is
+///    skipped, never both. Similarly, if both reference and query
+///    allow local alignment at the stop, then only one string will
+///    have a skipped suffix.
+///
+///    The skipped parts are described with two intervals (_refstart_,
+///    _refstop_) and (_querystart_, _querystop_).
+///
 ///    For example, an optimal semiglobal alignment of SISSI and MISSISSIPPI looks like this:
-
+///
 ///    ```
-///    ---SISSI---
-///    MISSISSIPPI
+///    ref   ---SISSI---
+///    query MISSISSIPPI
 ///    ```
-
-///    start1, stop1 = 0, 5
-///    start2, stop2 = 3, 8
+///
+///    ```
+///    refstart, refstop = 0, 5
+///    querystart, querystop = 3, 8
 ///    (with zero errors)
-
-///    The aligned parts are string1[start1:stop1] and string2[start2:stop2].
-
-///    The error rate is: errors / length where length is (stop1 - start1).
-
+///    ```
+///
+///    The aligned parts are `reference[refstart..refstop]` and
+///    `query[querystart..querystop]`.
+///
+///    The error rate is: _errors_ / _length_ where _length_ is
+///    `(refstop - refstart)`.
+///
 ///    An optimal alignment fulfills all of these criteria:
-
-///    - its error_rate is at most max_error_rate
-///    - Among those alignments with error_rate <= max_error_rate, the alignment contains
+///
+///    - its error rate is at most `max_error_rate`
+///    - Among those alignments with an error rate no greater than `max_error_rate`, the alignment contains
 ///      a maximal number of matches (there is no alignment with more matches).
-///    - If there are multiple alignments with the same no. of matches, then one that
-///      has minimal no. of errors is chosen.
+///    - If there are multiple alignments with the same number of matches, then one that
+///      has minimal number of errors is chosen.
 ///    - If there are still multiple candidates, choose the alignment that starts at the
 ///      leftmost position within the read.
-
-///    The alignment itself is not returned, only the tuple
-///    (start1, stop1, start2, stop2, matches, errors), where the first four fields have the
-///    meaning as described, matches is the number of matches and errors is the number of
-///    errors in the alignment.
-
-///    It is always the case that at least one of start1 and start2 is zero.
-
-///    IUPAC wildcard characters can be allowed in the reference and the query
-///    by setting the appropriate flags.
-
-///    If neither flag is set, the full ASCII alphabet is used for comparison.
-///    If any of the flags is set, all non-IUPAC characters in the sequences
-///    compare as 'not equal'.
+///
+///    The alignment itself is not returned, only the information in
+///    [`Location`](struct.Location.html).
+///    It is always the case that at least one of `refstart` and `querystart` is zero.
+///
+///    IUPAC wildcard characters can be allowed in the reference or
+///    the query by setting the appropriate flags. All non-IUPAC
+///    characters compare as non-equal, and when IUPAC wildcards are
+///    not enabled, anything except `A`, `C`, `G`, `T`, and `U`
+///    compares as non-equal to everything.
 #[derive(Clone, Debug)]
 pub struct Aligner {
     column: Vec<Entry>,
@@ -258,10 +282,8 @@ pub struct Aligner {
 const INIT_QUERY_LEN: usize = 256;
 
 impl Aligner {
-    pub fn m(&self) -> usize {
-        self.reference.len()
-    }
-
+    /// Creates a new aligner with a specified alignment configuration
+    /// and reference sequence.
     pub fn new(
         conf: &AlignerConf,
         reference: &[u8],
@@ -288,9 +310,6 @@ impl Aligner {
                 .count() as isize
         );
         match conf.matching {
-            AlignMatching::NoWildcard => {
-                breference.make_ascii_uppercase();
-            },             
             AlignMatching::RefWildcard => {
                 effective_length = m as isize - n_counts[m];
                 if effective_length == 0 {
@@ -298,6 +317,7 @@ impl Aligner {
                 }
                 encode_iupac_vec(reference, &mut breference);
             },
+            AlignMatching::NoWildcard |
             AlignMatching::QueryWildcard => {
                 encode_acgt_vec(reference, &mut breference);
             },
@@ -325,15 +345,20 @@ impl Aligner {
         })
     }
 
-    //     property dpmatrix:
-    //         The dynamic programming matrix as a DPMatrix object. This attribute is
-    //         usually None, unless debugging has been enabled with enable_debug().
+    /// Returns the length of the reference sequence
+    pub fn m(&self) -> usize {
+        self.reference.len()
+    }
+
+    /// Returns the dynamic programming matrix, which is `None` unless
+    /// debugging has been enabled.
     pub fn dpmatrix(&self) -> &Option<DPMatrix> {
         &self.dpmatrix
     }
 
-    ///         Store the dynamic programming matrix while running the locate() method
-    ///         and make it available in the .dpmatrix attribute.
+    /// Store the dynamic programming matrix while running
+    /// [`locate()`](#method.locate) and make it available by
+    /// [`dpmatrix()`](#method.dpmatrix).
     pub fn enable_debug(&mut self) {
         self.debug = true;
     }
@@ -357,20 +382,13 @@ impl Aligner {
         let max_error_rate = self.max_error_rate;
         let stop_in_query = self.query_ends.stop_local();
 
-        let compare_ascii = match self.matching {
+        match self.matching {
             AlignMatching::QueryWildcard => {
                 encode_iupac_vec(query, &mut self.bquery);
-                false
             },
+            AlignMatching::NoWildcard |
             AlignMatching::RefWildcard => {
                 encode_acgt_vec(query, &mut self.bquery);
-                false
-            },
-            AlignMatching::NoWildcard => {
-                self.bquery.clear();
-                self.bquery.extend(query.iter());
-                self.bquery.make_ascii_uppercase();
-                true
             },
         };
         let s2 = &self.bquery;
@@ -478,16 +496,8 @@ impl Aligner {
                 let cost;
                 let matches;
 
-                let characters_equal = if compare_ascii {
-                    (s1[(i - 1) as usize] == s2[(j - 1) as usize])
-                } else {
-                    (s1[(i - 1) as usize] & s2[(j - 1) as usize]) != 0
-                };
+                let characters_equal = (s1[(i - 1) as usize] & s2[(j - 1) as usize]) != 0;
 
-                // print!("s1[{}] = {} vs s2[{}] = {} with compare_ascii = {} => {}\n",
-                //        i-1, s1[(i - 1) as usize], j-1, s2[(j - 1) as usize],
-                //        compare_ascii, characters_equal);
-                
                 if characters_equal {
                     // # If the characters match, skip computing costs for
                     // # insertion and deletion as they are at least as high.
