@@ -81,6 +81,78 @@ impl std::fmt::Display for DPMatrix {
     }
 }
 
+#[derive(PartialEq,Eq,PartialOrd,Ord,Clone,Copy,Hash,Debug)]
+pub enum AlignEnds {
+    Global,
+    LocalStart,
+    LocalStop,
+    Local
+}
+
+impl AlignEnds {
+    pub fn start_local(self) -> bool {
+        self == Self::LocalStart || self == Self::Local
+    }
+
+    pub fn stop_local(self) -> bool {
+        self == Self::LocalStop || self == Self::Local
+    }
+}
+
+#[derive(PartialEq,Eq,PartialOrd,Ord,Clone,Copy,Hash,Debug)]
+pub enum AlignMatching {
+    NoWildcard,
+    RefWildcard,
+    QueryWildcard
+}
+
+impl AlignMatching {
+    pub fn ref_wildcard(self) -> bool {
+        self == AlignMatching::RefWildcard
+    }
+
+    pub fn query_wildcard(self) -> bool {
+        self == AlignMatching::QueryWildcard
+    }
+}
+
+#[derive(PartialEq,Eq,Debug,Clone)]
+pub struct Location {
+    refstart: isize,
+    refstop: isize,
+    querystart: isize,
+    querystop: isize,
+    matches: isize,
+    errors: isize,
+}
+
+impl Location {
+    pub fn refstart(&self) -> isize {
+        self.refstart
+    }
+
+    pub fn refstop(&self) -> isize {
+        self.refstop
+    }
+
+    pub fn querystart(&self) -> isize {
+        self.querystart
+    }
+
+    pub fn querystop(&self) -> isize {
+        self.querystop
+    }
+
+    pub fn matches(&self) -> isize {
+        self.matches
+    }
+
+    pub fn errors(&self) -> isize {
+        self.errors
+    }
+}
+
+
 ///    Find a full or partial occurrence of a query string in a reference string
 ///    allowing errors (mismatches, insertions, deletions).
 
@@ -158,15 +230,12 @@ impl std::fmt::Display for DPMatrix {
 pub struct Aligner {
     column: Vec<Entry>,
     max_error_rate: f64,
-    start_in_reference: bool,
-    start_in_query: bool,
-    stop_in_reference: bool,
-    stop_in_query: bool,
+    reference_ends: AlignEnds,
+    query_ends: AlignEnds,
     insertion_cost: isize,
     deletion_cost: isize,
     min_overlap: isize,
-    wildcard_ref: bool,
-    wildcard_query: bool,
+    matching: AlignMatching,
     debug: bool,
     dpmatrix: Option<DPMatrix>,
     reference: Vec<u8>,
@@ -186,9 +255,9 @@ impl Aligner {
     pub fn new(
         reference: &[u8],
         max_error_rate: f64,
-        flags: isize,
-        wildcard_ref: bool,
-        wildcard_query: bool,
+        reference_ends: AlignEnds,
+        query_ends: AlignEnds,
+        matching: AlignMatching,
         indel_cost: isize,
         min_overlap: isize,
     ) -> Result<Self> {
@@ -213,17 +282,21 @@ impl Aligner {
                 .filter(|&c| c == b'N' || c == b'n')
                 .count() as isize
         );
-        if wildcard_ref {
-            effective_length = m as isize - n_counts[m];
-            if effective_length == 0 {
-                bail!("Cannot have only N wildcards in the sequence");
-            }
-            encode_iupac_vec(reference, &mut breference);
-        } else if wildcard_query {
-            encode_acgt_vec(reference, &mut breference);
-        } else {
-            breference.make_ascii_uppercase();
-        }
+        match matching {
+            AlignMatching::NoWildcard => {
+                breference.make_ascii_uppercase();
+            },             
+            AlignMatching::RefWildcard => {
+                effective_length = m as isize - n_counts[m];
+                if effective_length == 0 {
+                    bail!("Cannot have only N wildcards in the sequence");
+                }
+                encode_iupac_vec(reference, &mut breference);
+            },
+            AlignMatching::QueryWildcard => {
+                encode_acgt_vec(reference, &mut breference);
+            },
+        };
 
         ensure!(indel_cost >= 1, "Indel cost must be at least 1");
         ensure!(min_overlap >= 1, "Min overlap must be at least 1");
@@ -231,12 +304,9 @@ impl Aligner {
         Ok(Aligner {
             column: vec![Entry::default(); m + 1],
             max_error_rate: max_error_rate,
-            start_in_reference: flags & 1 > 0,
-            start_in_query: flags & 2 > 0,
-            stop_in_reference: flags & 4 > 0,
-            stop_in_query: flags & 8 > 0,
-            wildcard_ref: wildcard_ref,
-            wildcard_query: wildcard_query,
+            reference_ends: reference_ends,
+            query_ends: query_ends,
+            matching: matching,
             min_overlap: min_overlap,
             debug: false,
             dpmatrix: None,
@@ -274,25 +344,29 @@ impl Aligner {
     //         with the given number of matches and the given number of errors.
 
     //         The alignment itself is not returned.
-    pub fn locate(&mut self, query: &[u8]) -> Option<(isize, isize, isize, isize, isize, isize)> {
+    pub fn locate(&mut self, query: &[u8]) -> Option<Location> {
         let s1 = &self.breference;
         let m = self.m();
         let n = query.len() as isize;
         let column = &mut self.column;
         let max_error_rate = self.max_error_rate;
-        let stop_in_query = self.stop_in_query;
+        let stop_in_query = self.query_ends.stop_local();
 
-        let compare_ascii = if self.wildcard_query {
-            encode_iupac_vec(query, &mut self.bquery);
-            false
-        } else if self.wildcard_ref {
-            encode_acgt_vec(query, &mut self.bquery);
-            false
-        } else {
-            self.bquery.clear();
-            self.bquery.extend(query.iter());
-            self.bquery.make_ascii_uppercase();
-            true
+        let compare_ascii = match self.matching {
+            AlignMatching::QueryWildcard => {
+                encode_iupac_vec(query, &mut self.bquery);
+                false
+            },
+            AlignMatching::RefWildcard => {
+                encode_acgt_vec(query, &mut self.bquery);
+                false
+            },
+            AlignMatching::NoWildcard => {
+                self.bquery.clear();
+                self.bquery.extend(query.iter());
+                self.bquery.make_ascii_uppercase();
+                true
+            },
         };
         let s2 = &self.bquery;
         //         DP Matrix:
@@ -308,13 +382,13 @@ impl Aligner {
         let k = (max_error_rate * m as f64).floor() as isize;
 
         // # Determine largest and smallest column we need to compute
-        let max_n = if !self.start_in_query {
+        let max_n = if !self.query_ends.start_local() {
             // # costs can only get worse after column m
             isize::min(n, m as isize + k)
         } else {
             n
         };
-        let min_n = if !self.stop_in_query {
+        let min_n = if !self.query_ends.stop_local() {
             isize::max(0, n - m as isize - k)
         } else {
             0
@@ -330,19 +404,19 @@ impl Aligner {
 
         // # TODO (later)
         // # fill out columns only until 'last'
-        if !self.start_in_reference && !self.start_in_query {
+        if !self.reference_ends.start_local() && !self.query_ends.start_local() {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
                 column[i].cost = isize::max(i as isize, min_n) * self.insertion_cost;
                 column[i].origin = 0;
             }
-        } else if self.start_in_reference && !self.start_in_query {
+        } else if self.reference_ends.start_local() && !self.query_ends.start_local() {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
                 column[i].cost = min_n * self.insertion_cost;
                 column[i].origin = isize::min(0, min_n - i as isize);
             }
-        } else if !self.start_in_reference && self.start_in_query {
+        } else if !self.reference_ends.start_local() && self.query_ends.start_local() {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
                 column[i].cost = i as isize * self.insertion_cost;
@@ -373,7 +447,7 @@ impl Aligner {
 
         // # Ukkonen's trick: index of the last cell that is at most k
         let mut last = isize::min(m as isize, k + 1);
-        if self.start_in_reference {
+        if self.reference_ends.start_local() {
             last = m as isize;
         }
 
@@ -388,7 +462,7 @@ impl Aligner {
             diag_entry = column[0];
 
             // # fill in first entry in this column
-            if self.start_in_query {
+            if self.query_ends.start_local() {
                 column[0].origin = j;
             } else {
                 column[0].cost = j * self.insertion_cost;
@@ -458,12 +532,12 @@ impl Aligner {
             // # last can be -1 here, but will be incremented next.
             // # TODO if last is -1, can we stop searching?
             if last < m as isize {
-                last += 1;
-            } else if stop_in_query {
+               last += 1;
+            } else if self.query_ends.stop_local() {
                 // # Found a match. If requested, find best match in last row.
                 // # length of the aligned part of the reference
                 let length = m as isize + isize::min(column[m].origin, 0);
-                let cur_effective_length = if self.wildcard_ref {
+                let cur_effective_length = if self.matching.ref_wildcard() {
                     if length < m as isize {
                         // # Recompute effective length so that it only takes into
                         // # account the matching suffix of the reference
@@ -496,14 +570,14 @@ impl Aligner {
         }
 
         if max_n == n {
-            let first_i = if self.stop_in_reference { 0 } else { m };
+            let first_i = if self.reference_ends.stop_local() { 0 } else { m };
 
             // # search in last column # TODO last?
             for i in first_i..(m + 1) {
                 let length = i as isize + isize::min(column[i].origin, 0);
                 let cost = column[i].cost;
                 let matches = column[i].matches;
-                let cur_effective_length = if self.wildcard_ref {
+                let cur_effective_length = if self.matching.ref_wildcard() {
                     if length < m as isize {
                         // # Recompute effective length so that it only takes into
                         // # account the matching part of the reference
@@ -543,24 +617,25 @@ impl Aligner {
             return None;
         }
 
-        let start1;
-        let start2;
+        let refstart;
+        let querystart;
         if best.origin >= 0 {
-            start1 = 0;
-            start2 = best.origin;
+            refstart = 0;
+            querystart = best.origin;
         } else {
-            start1 = -best.origin;
-            start2 = 0;
+            refstart = -best.origin;
+            querystart = 0;
         }
-        assert!(best.ref_stop - start1 > 0); // # Do not return empty alignments.
-        return Some((
-            start1,
-            best.ref_stop,
-            start2,
-            best.query_stop,
-            best.matches,
-            best.cost,
-        ));
+        assert!(best.ref_stop - refstart > 0); // # Do not return empty alignments.
+        return Some(
+            Location {
+                refstart: refstart,
+                refstop: best.ref_stop,
+                querystart: querystart,
+                querystop: best.query_stop,
+                matches: best.matches,
+                errors: best.cost,
+            });
     }
 }
 

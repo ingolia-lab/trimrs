@@ -198,9 +198,47 @@ fn test_align(reference: &[u8],
         print!("aligner = {:?}\n", aligner);
     }
 
-    let mut new_aligner = align::Aligner::new(reference, max_err, flags, wildcard_ref, wildcard_query, INDEL_COST, min_overlap as isize).unwrap();
+    let ref_ends = match (start_in_ref, stop_in_ref) {
+        (true, true)   => align::AlignEnds::Local,
+        (true, false)  => align::AlignEnds::LocalStart,
+        (false, true)  => align::AlignEnds::LocalStop,
+        (false, false) => align::AlignEnds::Global,
+    };
+
+    let query_ends = match (start_in_query, stop_in_query) {
+        (true, true)   => align::AlignEnds::Local,
+        (true, false)  => align::AlignEnds::LocalStart,
+        (false, true)  => align::AlignEnds::LocalStop,
+        (false, false) => align::AlignEnds::Global,
+    };
+
+    let matching = match (wildcard_ref, wildcard_query) {
+        (false, false) => align::AlignMatching::NoWildcard,
+        (true, false)  => align::AlignMatching::RefWildcard,
+        (false, true)  => align::AlignMatching::QueryWildcard,
+        (true, true)   => panic!("wildcards for ref and query!"),
+    };
+
+    let mut new_aligner = align::Aligner::new(reference, max_err, ref_ends, query_ends, matching, INDEL_COST, min_overlap as isize).unwrap();
     let new_actual = new_aligner.locate(query);
-    if new_actual != expected {
+
+    let new_actual_equals_expected
+        = if let Some(new_actual_location) = &new_actual {
+            if let Some((refstart, refstop, querystart, querystop, matches, errors)) = expected {
+                refstart == new_actual_location.refstart()
+                    && refstop == new_actual_location.refstop()
+                    && querystart == new_actual_location.querystart()
+                    && querystop == new_actual_location.querystop()
+                    && matches == new_actual_location.matches()
+                    && errors == new_actual_location.errors()
+            } else {
+                false
+            }
+        } else {
+            expected.is_none()
+        };
+    
+    if !new_actual_equals_expected {
         new_aligner.enable_debug();
         new_aligner.locate(query);
         print!("Expected {:?}\n", expected);
