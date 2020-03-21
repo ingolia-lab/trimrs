@@ -424,11 +424,7 @@ impl Aligner {
             n
         };
         let min_n = if !self.query_ends.stop_local() {
-            if n > m + k {
-                n - m - k
-            } else {
-                0
-            }
+            n - usize::min(n, m + k)
         } else {
             0
         };
@@ -453,21 +449,13 @@ impl Aligner {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
                 column[i].cost = min_n * self.insertion_cost;
-                column[i].origin = Origin::RefStart(if i > min_n {
-                    i - min_n
-                } else {
-                    0
-                });
+                column[i].origin = Origin::RefStart(i - usize::min(i, min_n));
             }
         } else if !self.reference_ends.start_local() && self.query_ends.start_local() {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
                 column[i].cost = i * self.insertion_cost;
-                column[i].origin = Origin::QueryStart(if min_n > i {
-                    min_n - i
-                } else {
-                    0
-                });
+                column[i].origin = Origin::QueryStart(min_n - usize::min(min_n, i));
             }
         } else {
             for i in 0..(m + 1) {
@@ -568,14 +556,15 @@ impl Aligner {
                     dpmatrix.set_entry(i, j, column[i].cost);
                 }
             }
+
             while last >= 0 && column[last as usize].cost > k {
                 last -= 1;
             }
-
+            
             // # last can be -1 here, but will be incremented next.
             // # TODO if last is -1, can we stop searching?
             if last < m as isize {
-               last += 1;
+                last += 1;
             } else if self.query_ends.stop_local() {
                 // # Found a match. If requested, find best match in last row.
                 // # length of the aligned part of the reference
