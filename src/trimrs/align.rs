@@ -60,8 +60,8 @@ impl DPMatrix {
     }
 
     /// Set an entry in the dynamic programming matrix.
-    pub fn set_entry(&mut self, i: usize, j: isize, cost: usize) {
-        self.rows[i][j as usize] = Some(cost);
+    pub fn set_entry(&mut self, i: usize, j: usize, cost: usize) {
+        self.rows[i][j] = Some(cost);
     }
 }
 
@@ -486,7 +486,7 @@ impl Aligner {
         if self.debug {
             let mut dpmatrix = DPMatrix::new(&self.reference, query);
             for i in 0..(m + 1) {
-                dpmatrix.set_entry(i, min_n as isize, column[i as usize].cost);
+                dpmatrix.set_entry(i, min_n, column[i].cost);
             }
             self.dpmatrix = Some(dpmatrix);
         }
@@ -510,15 +510,15 @@ impl Aligner {
         let mut diag_entry;
 
         // # iterate over columns
-        for j in (min_n as isize+ 1)..(max_n as isize + 1) {
+        for j in (min_n + 1)..(max_n + 1) {
             // # remember first entry before overwriting
             diag_entry = column[0];
 
             // # fill in first entry in this column
             if self.query_ends.start_local() {
-                column[0].origin = Origin::QueryStart(j as usize);
+                column[0].origin = Origin::QueryStart(j);
             } else {
-                column[0].cost = j as usize * self.insertion_cost;
+                column[0].cost = j * self.insertion_cost;
             }
 
             for i in 0..(last as usize) {
@@ -526,7 +526,7 @@ impl Aligner {
                 let cost;
                 let matches;
 
-                let characters_equal = (s1[i] & s2[(j - 1) as usize]) != 0;
+                let characters_equal = (s1[i] & s2[(j - 1)]) != 0;
 
                 if characters_equal {
                     // # If the characters match, skip computing costs for
@@ -608,7 +608,7 @@ impl Aligner {
                     best.cost = cost;
                     best.origin = column[m as usize].origin;
                     best.ref_stop = m as isize;
-                    best.query_stop = j;
+                    best.query_stop = j as isize;
                     if cost == 0 && matches == m as isize {
                         // # exact match, stop early
                         break;
