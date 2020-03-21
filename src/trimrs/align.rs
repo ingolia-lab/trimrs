@@ -29,8 +29,8 @@ struct Match {
     origin: Origin,
     cost: usize,
     matches: isize,
-    ref_stop: isize,
-    query_stop: isize,
+    ref_stop: usize,
+    query_stop: usize,
 }
 
 ///     Representation of the dynamic-programming matrix.
@@ -137,9 +137,9 @@ impl AlignMatching {
 #[derive(PartialEq,Eq,PartialOrd,Ord,Debug,Clone)]
 pub struct Location {
     refstart: isize,
-    refstop: isize,
+    refstop: usize,
     querystart: isize,
-    querystop: isize,
+    querystop: usize,
     matches: isize,
     errors: usize,
 }
@@ -152,7 +152,7 @@ impl Location {
 
     /// Stopping position on reference sequence, as a half-open
     /// interval, i.e., alignment does not include this position.
-    pub fn refstop(&self) -> isize {
+    pub fn refstop(&self) -> usize {
         self.refstop
     }
 
@@ -163,7 +163,7 @@ impl Location {
 
     /// Stopping position on the query sequence, as a half-open
     /// interval, i.e., alignment does not include this position.
-    pub fn querystop(&self) -> isize {
+    pub fn querystop(&self) -> usize {
         self.querystop
     }
 
@@ -424,8 +424,8 @@ impl Aligner {
             n
         };
         let min_n = if !self.query_ends.stop_local() {
-            if n as usize > m + k {
-                n as usize - m - k
+            if n > m + k {
+                n - m - k
             } else {
                 0
             }
@@ -492,9 +492,9 @@ impl Aligner {
         }
 
         let mut best = Match::default();
-        best.ref_stop = m as isize;
-        best.query_stop = n as isize;
-        best.cost = m + (n as usize);
+        best.ref_stop = m;
+        best.query_stop = n;
+        best.cost = m + n;
         best.origin = Origin::RefStart(0);
         best.matches = 0;
 
@@ -597,8 +597,8 @@ impl Aligner {
                 } else {
                     length
                 };
-                let cost = column[m as usize].cost;
-                let matches = column[m as usize].matches;
+                let cost = column[m].cost;
+                let matches = column[m].matches;
                 if length >= self.min_overlap
                     && (cost as f64) <= (cur_effective_length as f64) * max_error_rate
                     && (matches > best.matches || (matches == best.matches && cost < best.cost))
@@ -606,9 +606,9 @@ impl Aligner {
                     // # update
                     best.matches = matches;
                     best.cost = cost;
-                    best.origin = column[m as usize].origin;
-                    best.ref_stop = m as isize;
-                    best.query_stop = j as isize;
+                    best.origin = column[m].origin;
+                    best.ref_stop = m;
+                    best.query_stop = j;
                     if cost == 0 && matches == m as isize {
                         // # exact match, stop early
                         break;
@@ -659,13 +659,13 @@ impl Aligner {
                     best.matches = matches;
                     best.cost = cost;
                     best.origin = column[i].origin;
-                    best.ref_stop = i as isize;
-                    best.query_stop = n as isize;
+                    best.ref_stop = i;
+                    best.query_stop = n;
                 }
             }
         }
 
-        if best.cost == m + n as usize {
+        if best.cost == m + n {
             // # best.cost was initialized with this value.
             // # If it is unchanged, no alignment was found that has
             // # an error rate within the allowed range.
@@ -684,7 +684,7 @@ impl Aligner {
                 querystart = 0;
             },
         };
-        assert!(best.ref_stop - refstart > 0); // # Do not return empty alignments.
+        assert!(best.ref_stop > refstart as usize); // # Do not return empty alignments.
         return Some(
             Location {
                 refstart: refstart,
