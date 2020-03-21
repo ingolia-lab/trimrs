@@ -207,6 +207,32 @@ fn main() {
                b"GTGTTGTGCAACCACGACAACCACCAACC",
                0.05, false, true, true, false, true, false, 10,
                Some((0, 21, 8, 29, 20, 1)));   
+
+    // Testing edges
+    test_align_both(b"AGAGGAG", b"AGGAGTCT",
+                    0.0, true, true, true, true, false, false, 1,
+                    Some((2, 7, 0, 5, 5, 0)));
+    test_align_both(b"AGAGGAG", b"GAGGAGTCT",
+                    0.0, true, true, true, true, false, false, 1,
+                    Some((1, 7, 0, 6, 6, 0)));
+    test_align_both(b"AGAGGAG", b"AGAGGAGTCT",
+                    0.0, true, true, true, true, false, false, 1,
+                    Some((0, 7, 0, 7, 7, 0)));
+    test_align_both(b"AGAGGAG", b"TAGAGGAGTCT",
+                    0.0, true, true, true, true, false, false, 1,
+                    Some((0, 7, 1, 8, 7, 0)));
+    test_align_both(b"AGAGGAG", b"CTAGAGGAGTCT",
+                    0.0, true, true, true, true, false, false, 1,
+                    Some((0, 7, 2, 9, 7, 0)));
+    test_align_both(b"AGAGGAG", b"CTAGAGGAG",
+                    0.0, true, true, true, true, false, false, 1,
+                    Some((0, 7, 2, 9, 7, 0)));
+    test_align_both(b"AGAGGAG", b"TCTAGAGGA",
+                    0.0, true, true, true, true, false, false, 1,
+                    Some((0, 6, 3, 9, 6, 0)));
+    test_align_both(b"AGAGGAG", b"TCTAGAGG",
+                    0.0, true, true, true, true, false, false, 1,
+                    Some((0, 5, 3, 8, 5, 0)));
 }
 
 const INDEL_COST: isize = 1;

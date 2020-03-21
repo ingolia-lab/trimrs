@@ -4,17 +4,46 @@ use anyhow::{bail, ensure, Result};
 
 use crate::cutadapt_encode::*;
 
+// if best.origin >= 0 {
+//     refstart = 0;
+//     querystart = best.origin;
+// } else {
+//     refstart = -best.origin;
+//     querystart = 0;
+// }
+
+#[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord)]
+enum Origin {
+    // Origin positive
+    QueryStart(usize),
+    // Origin negative
+    RefStart(usize),
+}
+
+impl Origin {
+    fn origin(self) -> isize {
+        match self {
+            Origin::QueryStart(s) => s as isize,
+            Origin::RefStart(s) => -(s as isize),
+        }
+    }
+}
+
+impl std::default::Default for Origin {
+    fn default() -> Self { Origin::RefStart(0) }
+}
+
 // Structure for a DP matrix entry
 #[derive(Clone, Copy, Debug, Default)]
 struct Entry {
     cost: isize,
     matches: isize,
-    origin: isize,
+    origin: Origin,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 struct Match {
-    origin: isize,
+    origin: Origin,
     cost: isize,
     matches: isize,
     ref_stop: isize,
@@ -431,25 +460,39 @@ impl Aligner {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
                 column[i].cost = isize::max(i as isize, min_n) * self.insertion_cost;
-                column[i].origin = 0;
+                column[i].origin = Origin::RefStart(0);
             }
         } else if self.reference_ends.start_local() && !self.query_ends.start_local() {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
                 column[i].cost = min_n * self.insertion_cost;
-                column[i].origin = isize::min(0, min_n - i as isize);
+                column[i].origin = Origin::RefStart(if i > min_n as usize {
+                    i - min_n as usize
+                } else {
+                    0
+                });
+                    //                column[i].origin = isize::min(0, min_n - i as isize);
+                    // max(0, i - min_n)
             }
         } else if !self.reference_ends.start_local() && self.query_ends.start_local() {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
                 column[i].cost = i as isize * self.insertion_cost;
-                column[i].origin = isize::max(0, min_n - i as isize);
+                column[i].origin = Origin::QueryStart(if min_n as usize > i {
+                    min_n as usize - i
+                } else {
+                    0
+                });
             }
         } else {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
                 column[i].cost = isize::min(i as isize, min_n) * self.insertion_cost;
-                column[i].origin = min_n - i as isize;
+                column[i].origin = if min_n as usize > i {
+                    Origin::QueryStart(min_n as usize - i)
+                } else {
+                    Origin::RefStart(i - min_n as usize)
+                };
             }
         }
 
@@ -465,7 +508,7 @@ impl Aligner {
         best.ref_stop = m as isize;
         best.query_stop = n;
         best.cost = m as isize + n;
-        best.origin = 0;
+        best.origin = Origin::RefStart(0);
         best.matches = 0;
 
         // # Ukkonen's trick: index of the last cell that is at most k
@@ -486,7 +529,7 @@ impl Aligner {
 
             // # fill in first entry in this column
             if self.query_ends.start_local() {
-                column[0].origin = j;
+                column[0].origin = Origin::QueryStart(j as usize);
             } else {
                 column[0].cost = j * self.insertion_cost;
             }
@@ -551,7 +594,11 @@ impl Aligner {
             } else if self.query_ends.stop_local() {
                 // # Found a match. If requested, find best match in last row.
                 // # length of the aligned part of the reference
-                let length = m as isize + isize::min(column[m].origin, 0);
+                //                let length = m as isize + isize::min(column[m].origin, 0);
+                let length = match column[m].origin {
+                    Origin::QueryStart(_) => m as isize,
+                    Origin::RefStart(r) => (m - r) as isize,
+                };
                 let cur_effective_length = if self.matching.ref_wildcard() {
                     if length < m as isize {
                         // # Recompute effective length so that it only takes into
@@ -589,17 +636,23 @@ impl Aligner {
 
             // # search in last column # TODO last?
             for i in first_i..(m + 1) {
-                let length = i as isize + isize::min(column[i].origin, 0);
+                let length = match column[i].origin {
+                    Origin::QueryStart(_) => i as isize,
+                    Origin::RefStart(s) => (i - s) as isize,
+                };
                 let cost = column[i].cost;
                 let matches = column[i].matches;
                 let cur_effective_length = if self.matching.ref_wildcard() {
                     if length < m as isize {
                         // # Recompute effective length so that it only takes into
                         // # account the matching part of the reference
-                        let ref_start = -isize::min(column[i].origin, 0);
+                        let ref_start = match column[i].origin {
+                            Origin::QueryStart(_) => 0,
+                            Origin::RefStart(r) => r,
+                        };
                         assert!(0 <= ref_start);
-                        assert!(ref_start <= m as isize);
-                        length - (self.n_counts[i] - self.n_counts[ref_start as usize])
+                        assert!(ref_start <= m);
+                        length - (self.n_counts[i] - self.n_counts[ref_start])
                     } else {
                         self.effective_length
                     }
@@ -634,13 +687,16 @@ impl Aligner {
 
         let refstart;
         let querystart;
-        if best.origin >= 0 {
-            refstart = 0;
-            querystart = best.origin;
-        } else {
-            refstart = -best.origin;
-            querystart = 0;
-        }
+        match best.origin {
+            Origin::QueryStart(start) => {
+                refstart = 0;
+                querystart = start as isize;
+            },
+            Origin::RefStart(start) => {
+                refstart = start as isize;
+                querystart = 0;
+            },
+        };
         assert!(best.ref_stop - refstart > 0); // # Do not return empty alignments.
         return Some(
             Location {
@@ -653,126 +709,3 @@ impl Aligner {
             });
     }
 }
-
-//     def __dealloc__(self):
-//         PyMem_Free(self.column)
-//         PyMem_Free(self.n_counts)
-
-// cdef class PrefixComparer:
-//     """
-//     A version of the Aligner that is specialized in the following way:
-
-//     - it does not allow indels
-//     - it allows only 5' anchored adapters
-
-//     This is a separate class, not simply a function, in order to be able
-//     to cache the reference (avoiding to convert it from str to bytes on
-//     every invocation)
-//     """
-//     cdef:
-//         bytes reference
-//         bint wildcard_ref
-//         bint wildcard_query
-//         int m
-//         int max_k  # max. number of errors
-//         readonly int effective_length
-//         int min_overlap
-
-//     # __init__ instead of __cinit__ because we need to override this in SuffixComparer
-//     def __init__(
-//         self,
-//         str reference,
-//         double max_error_rate,
-//         bint wildcard_ref=False,
-//         bint wildcard_query=False,
-//         int min_overlap=1,
-//     ):
-//         self.wildcard_ref = wildcard_ref
-//         self.wildcard_query = wildcard_query
-//         self.m = len(reference)
-//         self.effective_length = self.m
-//         if self.wildcard_ref:
-//             self.effective_length -= reference.count('N') - reference.count('n')
-//             if self.effective_length == 0:
-//                 raise ValueError("Cannot have only N wildcards in the sequence")
-//         if not (0 <= max_error_rate <= 1.):
-//             raise ValueError("max_error_rate must be between 0 and 1")
-//         self.max_k = int(max_error_rate * self.effective_length)
-//         self.reference = reference.encode('ascii').upper()
-//         if min_overlap < 1:
-//             raise ValueError("min_overlap must be at least 1")
-//         self.min_overlap = min_overlap
-//         if self.wildcard_ref:
-//             self.reference = self.reference.translate(IUPAC_TABLE)
-//         elif self.wildcard_query:
-//             self.reference = self.reference.translate(ACGT_TABLE)
-
-//     def __repr__(self):
-//         return "{}(reference={!r}, max_k={}, wildcard_ref={}, "\
-//             "wildcard_query={})".format(
-//                 self.__class__.__name__,
-//                 self.reference, self.max_k, self.wildcard_ref,
-//                 self.wildcard_query)
-
-//     def locate(self, str query):
-//         """
-//         Find out whether one string is the prefix of the other one, allowing
-//         IUPAC wildcards in ref and/or query if the appropriate flag is set.
-
-//         This is used to find an anchored 5' adapter (type 'FRONT') in the 'no indels' mode.
-//         This is very simple as only the number of errors needs to be counted.
-
-//         This function returns a tuple compatible with what Aligner.locate outputs.
-//         """
-//         cdef:
-//             bytes query_bytes = query.encode('ascii')
-//             char* r_ptr = self.reference
-//             char* q_ptr
-//             int i, matches = 0
-//             int n = len(query_bytes)
-//             int length = min(self.m, n)
-//             bint compare_ascii = False
-//             int errors
-
-//         if self.wildcard_query:
-//             query_bytes = query_bytes.translate(IUPAC_TABLE)
-//         elif self.wildcard_ref:
-//             query_bytes = query_bytes.translate(ACGT_TABLE)
-//         else:
-//             query_bytes = query_bytes.upper()
-//             compare_ascii = True
-//         q_ptr = query_bytes
-
-//         if compare_ascii:
-//             for i in range(length):
-//                 if r_ptr[i] == q_ptr[i]:
-//                     matches += 1
-//         else:
-//             for i in range(length):
-//                 if (r_ptr[i] & q_ptr[i]) != 0:
-//                     matches += 1
-
-//         errors = length - matches
-//         if errors > self.max_k or length < self.min_overlap:
-//             return None
-//         return (0, length, 0, length, matches, length - matches)
-
-// cdef class SuffixComparer(PrefixComparer):
-
-//     def __init__(
-//         self,
-//         str reference,
-//         double max_error_rate,
-//         bint wildcard_ref=False,
-//         bint wildcard_query=False,
-//         int min_overlap=1,
-//     ):
-//         super().__init__(reference[::-1], max_error_rate, wildcard_ref, wildcard_query, min_overlap)
-
-//     def locate(self, str query):
-//         cdef int n = len(query)
-//         result = super().locate(query[::-1])
-//         if result is None:
-//             return None
-//         _, length, _, _, matches, errors = result
-//         return (self.m - length, self.m, n - length, n, matches, errors)
