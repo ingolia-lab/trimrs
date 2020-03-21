@@ -414,17 +414,21 @@ impl Aligner {
         //                m
 
         // # maximum no. of errors
-        let k = (max_error_rate * m as f64).floor() as isize;
+        let k = (max_error_rate * m as f64).floor() as usize;
 
         // # Determine largest and smallest column we need to compute
         let max_n = if !self.query_ends.start_local() {
             // # costs can only get worse after column m
-            isize::min(n, m as isize + k)
+            usize::min(n as usize, m + k)
         } else {
-            n
+            n as usize
         };
         let min_n = if !self.query_ends.stop_local() {
-            isize::max(0, n - m as isize - k)
+            if n as usize > m + k {
+                n as usize - m - k
+            } else {
+                0
+            }
         } else {
             0
         };
@@ -442,15 +446,15 @@ impl Aligner {
         if !self.reference_ends.start_local() && !self.query_ends.start_local() {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
-                column[i].cost = usize::max(i, min_n as usize) * self.insertion_cost;
+                column[i].cost = usize::max(i, min_n) * self.insertion_cost;
                 column[i].origin = Origin::RefStart(0);
             }
         } else if self.reference_ends.start_local() && !self.query_ends.start_local() {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
-                column[i].cost = min_n as usize * self.insertion_cost;
-                column[i].origin = Origin::RefStart(if i > min_n as usize {
-                    i - min_n as usize
+                column[i].cost = min_n * self.insertion_cost;
+                column[i].origin = Origin::RefStart(if i > min_n {
+                    i - min_n
                 } else {
                     0
                 });
@@ -461,8 +465,8 @@ impl Aligner {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
                 column[i].cost = i * self.insertion_cost;
-                column[i].origin = Origin::QueryStart(if min_n as usize > i {
-                    min_n as usize - i
+                column[i].origin = Origin::QueryStart(if min_n > i {
+                    min_n - i
                 } else {
                     0
                 });
@@ -470,11 +474,11 @@ impl Aligner {
         } else {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
-                column[i].cost = usize::min(i, min_n as usize) * self.insertion_cost;
-                column[i].origin = if min_n as usize > i {
-                    Origin::QueryStart(min_n as usize - i)
+                column[i].cost = usize::min(i, min_n) * self.insertion_cost;
+                column[i].origin = if min_n > i {
+                    Origin::QueryStart(min_n - i)
                 } else {
-                    Origin::RefStart(i - min_n as usize)
+                    Origin::RefStart(i - min_n)
                 };
             }
         }
@@ -482,7 +486,7 @@ impl Aligner {
         if self.debug {
             let mut dpmatrix = DPMatrix::new(&self.reference, query);
             for i in 0..(m + 1) {
-                dpmatrix.set_entry(i, min_n, column[i as usize].cost);
+                dpmatrix.set_entry(i, min_n as isize, column[i as usize].cost);
             }
             self.dpmatrix = Some(dpmatrix);
         }
@@ -495,7 +499,7 @@ impl Aligner {
         best.matches = 0;
 
         // # Ukkonen's trick: index of the last cell that is at most k
-        let mut last = isize::min(m as isize, k + 1);
+        let mut last = isize::min(m as isize, k as isize + 1);
         if self.reference_ends.start_local() {
             last = m as isize;
         }
@@ -506,7 +510,7 @@ impl Aligner {
         let mut diag_entry;
 
         // # iterate over columns
-        for j in (min_n + 1)..(max_n + 1) {
+        for j in (min_n as isize+ 1)..(max_n as isize+ 1) {
             // # remember first entry before overwriting
             diag_entry = column[0];
 
@@ -566,7 +570,7 @@ impl Aligner {
                     dpmatrix.set_entry(i, j, column[i].cost);
                 }
             }
-            while last >= 0 && column[last as usize].cost > (k as usize) {
+            while last >= 0 && column[last as usize].cost > k {
                 last -= 1;
             }
 
@@ -614,7 +618,7 @@ impl Aligner {
             }
         }
 
-        if max_n == n {
+        if max_n as isize == n {
             let first_i = if self.reference_ends.stop_local() { 0 } else { m };
 
             // # search in last column # TODO last?
