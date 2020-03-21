@@ -1,6 +1,6 @@
 use std::default::Default;
 
-use crate::cutadapt_encode::*;
+use crate::encode::*;
 
                                                                                 // # structure for a DP matrix entry
 #[derive(Clone,Copy,Debug,Default)]

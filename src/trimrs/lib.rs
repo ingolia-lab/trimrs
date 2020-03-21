@@ -1,5 +1,5 @@
 pub mod align;
 pub mod cutadapt_align;
-pub mod cutadapt_encode;
+pub mod encode;
 mod output;
 mod trimming;

@@ -1,3 +1,8 @@
+/// Encode `nts` without IUPAC wildcards.
+///
+/// # Arguments
+/// * `nts` is the ASCII representation of the sequence
+/// * `mask` is modified to contain the encoded mask
 pub fn encode_acgt_vec(nts: &[u8], mask: &mut Vec<u8>) {
     mask.resize(nts.len(), 0);
     for i in 0..nts.len() {
@@ -5,6 +10,15 @@ pub fn encode_acgt_vec(nts: &[u8], mask: &mut Vec<u8>) {
     }
 }
 
+/// Encodes `nts` with IUPAC wildcards.
+///
+/// Bitwise and of a wildcard-encoded sequence with an ACGT-encoded
+/// sequence will give a non-zero result exactly when the wildcard
+/// matches the sequence.
+///
+/// # Arguments
+/// * `nts` is the ASCII representation of the sequence with IUPAC wildcards.
+/// * `mask` is modified to contain the encoded mask
 pub fn encode_iupac_vec(nts: &[u8], mask: &mut Vec<u8>) {
     mask.resize(nts.len(), 0);
     for i in 0..nts.len() {
@@ -12,6 +26,13 @@ pub fn encode_iupac_vec(nts: &[u8], mask: &mut Vec<u8>) {
     }
 }
 
+/// Decodes `mask`, using IUPAC wildcards when needed.
+///
+/// Any `0` values are decoded to `x`.
+///
+/// # Arguments
+/// * `mask` is an encoded mask from [`encode_acgt_vec`](fn.encode_acgt_vec.html) or [`encode_iupac_vec`](fn.encode_iupac_vec.html)
+/// * `nts` is the decoded ASCII string.
 pub fn decode_iupac_vec(mask: &[u8], nts: &mut Vec<u8>) {
     nts.resize(mask.len(), 0);
     for i in 0..mask.len() {

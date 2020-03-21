@@ -2,7 +2,7 @@ use std::default::Default;
 
 use anyhow::{bail, ensure, Result};
 
-use crate::cutadapt_encode::*;
+use crate::encode::*;
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord)]
 enum Origin {
