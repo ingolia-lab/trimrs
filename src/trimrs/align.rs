@@ -389,7 +389,7 @@ impl Aligner {
     pub fn locate(&mut self, query: &[u8]) -> Option<Location> {
         let s1 = &self.breference;
         let m = self.m();
-        let n = query.len() as isize;
+        let n = query.len();
         let column = &mut self.column;
         let max_error_rate = self.max_error_rate;
         let stop_in_query = self.query_ends.stop_local();
@@ -419,9 +419,9 @@ impl Aligner {
         // # Determine largest and smallest column we need to compute
         let max_n = if !self.query_ends.start_local() {
             // # costs can only get worse after column m
-            usize::min(n as usize, m + k)
+            usize::min(n, m + k)
         } else {
-            n as usize
+            n
         };
         let min_n = if !self.query_ends.stop_local() {
             if n as usize > m + k {
@@ -493,7 +493,7 @@ impl Aligner {
 
         let mut best = Match::default();
         best.ref_stop = m as isize;
-        best.query_stop = n;
+        best.query_stop = n as isize;
         best.cost = m + (n as usize);
         best.origin = Origin::RefStart(0);
         best.matches = 0;
@@ -510,7 +510,7 @@ impl Aligner {
         let mut diag_entry;
 
         // # iterate over columns
-        for j in (min_n as isize+ 1)..(max_n as isize+ 1) {
+        for j in (min_n as isize+ 1)..(max_n as isize + 1) {
             // # remember first entry before overwriting
             diag_entry = column[0];
 
@@ -618,7 +618,7 @@ impl Aligner {
             }
         }
 
-        if max_n as isize == n {
+        if max_n == n {
             let first_i = if self.reference_ends.stop_local() { 0 } else { m };
 
             // # search in last column # TODO last?
@@ -660,7 +660,7 @@ impl Aligner {
                     best.cost = cost;
                     best.origin = column[i].origin;
                     best.ref_stop = i as isize;
-                    best.query_stop = n;
+                    best.query_stop = n as isize;
                 }
             }
         }
