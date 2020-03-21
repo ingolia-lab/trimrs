@@ -286,8 +286,8 @@ pub struct Aligner {
     dpmatrix: Option<DPMatrix>,
     reference: Vec<u8>,
     breference: Vec<u8>,
-    effective_length: isize,
-    n_counts: Vec<isize>,
+    effective_length: usize,
+    n_counts: Vec<usize>,
     bquery: Vec<u8>,
 }
 
@@ -302,7 +302,7 @@ impl Aligner {
     ) -> Result<Self> {
         let m = reference.len();
         let mut n_counts = vec![0; m + 1];
-        let mut effective_length = m as isize;
+        let mut effective_length = m;
         let mut breference = reference.to_vec();
 
         let mut n_count = 0;
@@ -319,11 +319,11 @@ impl Aligner {
                 .iter()
                 .copied()
                 .filter(|&c| c == b'N' || c == b'n')
-                .count() as isize
+                .count()
         );
         match conf.matching {
             AlignMatching::RefWildcard => {
-                effective_length = m as isize - n_counts[m];
+                effective_length = m - n_counts[m];
                 if effective_length == 0 {
                     bail!("Cannot have only N wildcards in the sequence");
                 }
@@ -458,8 +458,6 @@ impl Aligner {
                 } else {
                     0
                 });
-                    //                column[i].origin = isize::min(0, min_n - i as isize);
-                    // max(0, i - min_n)
             }
         } else if !self.reference_ends.start_local() && self.query_ends.start_local() {
             for i in 0..(m + 1) {
@@ -581,16 +579,15 @@ impl Aligner {
             } else if self.query_ends.stop_local() {
                 // # Found a match. If requested, find best match in last row.
                 // # length of the aligned part of the reference
-                //                let length = m as isize + isize::min(column[m].origin, 0);
                 let length = match column[m].origin {
-                    Origin::QueryStart(_) => m as isize,
-                    Origin::RefStart(r) => (m - r) as isize,
+                    Origin::QueryStart(_) => m,
+                    Origin::RefStart(r) => (m - r),
                 };
                 let cur_effective_length = if self.matching.ref_wildcard() {
-                    if length < m as isize {
+                    if length < m {
                         // # Recompute effective length so that it only takes into
                         // # account the matching suffix of the reference
-                        length - self.n_counts[length as usize]
+                        length - self.n_counts[length]
                     } else {
                         self.effective_length
                     }
@@ -599,7 +596,7 @@ impl Aligner {
                 };
                 let cost = column[m].cost;
                 let matches = column[m].matches;
-                if length >= self.min_overlap as isize
+                if length >= self.min_overlap
                     && (cost as f64) <= (cur_effective_length as f64) * max_error_rate
                     && (matches > best.matches || (matches == best.matches && cost < best.cost))
                 {
@@ -624,13 +621,13 @@ impl Aligner {
             // # search in last column # TODO last?
             for i in first_i..(m + 1) {
                 let length = match column[i].origin {
-                    Origin::QueryStart(_) => i as isize,
-                    Origin::RefStart(s) => (i - s) as isize,
+                    Origin::QueryStart(_) => i,
+                    Origin::RefStart(s) => (i - s),
                 };
                 let cost = column[i].cost;
                 let matches = column[i].matches;
                 let cur_effective_length = if self.matching.ref_wildcard() {
-                    if length < m as isize {
+                    if length < m {
                         // # Recompute effective length so that it only takes into
                         // # account the matching part of the reference
                         let ref_start = match column[i].origin {
@@ -647,11 +644,10 @@ impl Aligner {
                     length
                 };
 
-                assert!(0 <= cur_effective_length);
                 assert!(cur_effective_length <= length);
                 assert!(cur_effective_length <= self.effective_length);
 
-                if length >= self.min_overlap as isize
+                if length >= self.min_overlap
                     && (cost as f64) <= cur_effective_length as f64 * max_error_rate
                     && (matches > best.matches || (matches == best.matches && cost < best.cost))
                 {
