@@ -4,29 +4,12 @@ use anyhow::{bail, ensure, Result};
 
 use crate::cutadapt_encode::*;
 
-// if best.origin >= 0 {
-//     refstart = 0;
-//     querystart = best.origin;
-// } else {
-//     refstart = -best.origin;
-//     querystart = 0;
-// }
-
 #[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord)]
 enum Origin {
     // Origin positive
     QueryStart(usize),
     // Origin negative
     RefStart(usize),
-}
-
-impl Origin {
-    fn origin(self) -> isize {
-        match self {
-            Origin::QueryStart(s) => s as isize,
-            Origin::RefStart(s) => -(s as isize),
-        }
-    }
 }
 
 impl std::default::Default for Origin {
@@ -36,7 +19,7 @@ impl std::default::Default for Origin {
 // Structure for a DP matrix entry
 #[derive(Clone, Copy, Debug, Default)]
 struct Entry {
-    cost: isize,
+    cost: usize,
     matches: isize,
     origin: Origin,
 }
@@ -44,7 +27,7 @@ struct Entry {
 #[derive(Clone, Copy, Debug, Default)]
 struct Match {
     origin: Origin,
-    cost: isize,
+    cost: usize,
     matches: isize,
     ref_stop: isize,
     query_stop: isize,
@@ -59,7 +42,7 @@ struct Match {
 ///     computed.
 #[derive(Clone, Debug)]
 pub struct DPMatrix {
-    rows: Vec<Vec<Option<isize>>>,
+    rows: Vec<Vec<Option<usize>>>,
     reference: Vec<u8>,
     query: Vec<u8>,
 }
@@ -77,7 +60,7 @@ impl DPMatrix {
     }
 
     /// Set an entry in the dynamic programming matrix.
-    pub fn set_entry(&mut self, i: usize, j: isize, cost: isize) {
+    pub fn set_entry(&mut self, i: usize, j: isize, cost: usize) {
         self.rows[i][j as usize] = Some(cost);
     }
 }
@@ -158,7 +141,7 @@ pub struct Location {
     querystart: isize,
     querystop: isize,
     matches: isize,
-    errors: isize,
+    errors: usize,
 }
 
 impl Location {
@@ -188,7 +171,7 @@ impl Location {
         self.matches
     }
 
-    pub fn errors(&self) -> isize {
+    pub fn errors(&self) -> usize {
         self.errors
     }
 }
@@ -211,7 +194,7 @@ pub struct AlignerConf {
     pub matching: AlignMatching,
 
     /// Cost of insertion or deletion
-    pub indel_cost: isize,
+    pub indel_cost: usize,
 
     /// Minimum overlap to report a match
     pub min_overlap: isize,
@@ -295,8 +278,8 @@ pub struct Aligner {
     max_error_rate: f64,
     reference_ends: AlignEnds,
     query_ends: AlignEnds,
-    insertion_cost: isize,
-    deletion_cost: isize,
+    insertion_cost: usize,
+    deletion_cost: usize,
     min_overlap: isize,
     matching: AlignMatching,
     debug: bool,
@@ -459,13 +442,13 @@ impl Aligner {
         if !self.reference_ends.start_local() && !self.query_ends.start_local() {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
-                column[i].cost = isize::max(i as isize, min_n) * self.insertion_cost;
+                column[i].cost = usize::max(i, min_n as usize) * self.insertion_cost;
                 column[i].origin = Origin::RefStart(0);
             }
         } else if self.reference_ends.start_local() && !self.query_ends.start_local() {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
-                column[i].cost = min_n * self.insertion_cost;
+                column[i].cost = min_n as usize * self.insertion_cost;
                 column[i].origin = Origin::RefStart(if i > min_n as usize {
                     i - min_n as usize
                 } else {
@@ -477,7 +460,7 @@ impl Aligner {
         } else if !self.reference_ends.start_local() && self.query_ends.start_local() {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
-                column[i].cost = i as isize * self.insertion_cost;
+                column[i].cost = i * self.insertion_cost;
                 column[i].origin = Origin::QueryStart(if min_n as usize > i {
                     min_n as usize - i
                 } else {
@@ -487,7 +470,7 @@ impl Aligner {
         } else {
             for i in 0..(m + 1) {
                 column[i].matches = 0;
-                column[i].cost = isize::min(i as isize, min_n) * self.insertion_cost;
+                column[i].cost = usize::min(i, min_n as usize) * self.insertion_cost;
                 column[i].origin = if min_n as usize > i {
                     Origin::QueryStart(min_n as usize - i)
                 } else {
@@ -507,7 +490,7 @@ impl Aligner {
         let mut best = Match::default();
         best.ref_stop = m as isize;
         best.query_stop = n;
-        best.cost = m as isize + n;
+        best.cost = m + (n as usize);
         best.origin = Origin::RefStart(0);
         best.matches = 0;
 
@@ -531,7 +514,7 @@ impl Aligner {
             if self.query_ends.start_local() {
                 column[0].origin = Origin::QueryStart(j as usize);
             } else {
-                column[0].cost = j * self.insertion_cost;
+                column[0].cost = j as usize * self.insertion_cost;
             }
 
             for i in 0..(last as usize) {
@@ -583,7 +566,7 @@ impl Aligner {
                     dpmatrix.set_entry(i, j, column[i].cost);
                 }
             }
-            while last >= 0 && column[last as usize].cost > k {
+            while last >= 0 && column[last as usize].cost > (k as usize) {
                 last -= 1;
             }
 
@@ -678,7 +661,7 @@ impl Aligner {
             }
         }
 
-        if best.cost == m as isize + n {
+        if best.cost == m + n as usize {
             // # best.cost was initialized with this value.
             // # If it is unchanged, no alignment was found that has
             // # an error rate within the allowed range.

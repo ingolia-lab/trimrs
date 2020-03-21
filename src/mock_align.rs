@@ -322,7 +322,7 @@ fn test_align(reference: &[u8],
             reference_ends: ref_ends,
             query_ends: query_ends,
             matching: matching,
-            indel_cost: INDEL_COST,
+            indel_cost: INDEL_COST as usize,
             min_overlap: min_overlap as isize,
         };
     let mut new_aligner = align::Aligner::new(&new_aligner_conf, reference).unwrap();
@@ -336,7 +336,7 @@ fn test_align(reference: &[u8],
                     && querystart == new_actual_location.querystart()
                     && querystop == new_actual_location.querystop()
                     && matches == new_actual_location.matches()
-                    && errors == new_actual_location.errors()
+                    && errors == new_actual_location.errors() as isize
             } else {
                 false
             }
