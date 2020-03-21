@@ -215,10 +215,9 @@ pub struct AlignerConf {
 ///    a bit unusual because the trivial “optimal” solution at edit distance 0
 ///    would be to skip all of the reference and all of the query, like this:
 ///
-///    ```
-///        REFERENCE-----
-///        ---------QUERY
-///    ```
+///    `REFERENCE-----`
+///
+///    `---------QUERY`
 ///
 ///    Conceptually, the algorithm used here instead tests all possible overlaps
 ///    between the two sequences and chooses the overlap which maximizes the
@@ -238,16 +237,15 @@ pub struct AlignerConf {
 ///
 ///    For example, an optimal semiglobal alignment of SISSI and MISSISSIPPI looks like this:
 ///
-///    ```
-///    ref   ---SISSI---
-///    query MISSISSIPPI
-///    ```
+///    `ref   ---SISSI---`
 ///
-///    ```
-///    refstart, refstop = 0, 5
-///    querystart, querystop = 3, 8
-///    (with zero errors)
-///    ```
+///    `query MISSISSIPPI`
+///
+///    `refstart, refstop = 0, 5`
+///
+///    `querystart, querystop = 3, 8`
+///
+///    `(with zero errors)`
 ///
 ///    The aligned parts are `reference[refstart..refstop]` and
 ///    `query[querystart..querystop]`.
