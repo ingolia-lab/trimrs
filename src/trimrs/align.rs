@@ -48,8 +48,8 @@ impl DPMatrix {
     }
 
     /// Set an entry in the dynamic programming matrix.
-    pub fn set_entry(&mut self, i: isize, j: isize, cost: isize) {
-        self.rows[i as usize][j as usize] = Some(cost);
+    pub fn set_entry(&mut self, i: usize, j: isize, cost: isize) {
+        self.rows[i][j as usize] = Some(cost);
     }
 }
 
@@ -456,7 +456,7 @@ impl Aligner {
         if self.debug {
             let mut dpmatrix = DPMatrix::new(&self.reference, query);
             for i in 0..(m + 1) {
-                dpmatrix.set_entry(i as isize, min_n, column[i as usize].cost);
+                dpmatrix.set_entry(i, min_n, column[i as usize].cost);
             }
             self.dpmatrix = Some(dpmatrix);
         }
@@ -491,12 +491,12 @@ impl Aligner {
                 column[0].cost = j * self.insertion_cost;
             }
 
-            for i in 1..(last + 1) {
+            for i in 0..(last as usize) {
                 let origin;
                 let cost;
                 let matches;
 
-                let characters_equal = (s1[(i - 1) as usize] & s2[(j - 1) as usize]) != 0;
+                let characters_equal = (s1[i] & s2[(j - 1) as usize]) != 0;
 
                 if characters_equal {
                     // # If the characters match, skip computing costs for
@@ -507,8 +507,8 @@ impl Aligner {
                 } else {
                     // # Characters do not match.
                     let cost_diag = diag_entry.cost + 1;
-                    let cost_deletion = column[i as usize].cost + self.deletion_cost;
-                    let cost_insertion = column[(i - 1) as usize].cost + self.insertion_cost;
+                    let cost_deletion = column[i + 1].cost + self.deletion_cost;
+                    let cost_insertion = column[i].cost + self.insertion_cost;
 
                     if cost_diag <= cost_deletion && cost_diag <= cost_insertion {
                         // # MISMATCH
@@ -518,26 +518,26 @@ impl Aligner {
                     } else if cost_insertion < cost_deletion {
                         // # INSERTION
                         cost = cost_insertion;
-                        origin = column[(i - 1) as usize].origin;
-                        matches = column[(i - 1) as usize].matches;
+                        origin = column[i].origin;
+                        matches = column[i].matches;
                     } else {
                         // # DELETION
                         cost = cost_deletion;
-                        origin = column[i as usize].origin;
-                        matches = column[i as usize].matches;
+                        origin = column[i + 1].origin;
+                        matches = column[i + 1].matches;
                     }
                 }
 
                 // # Remember the current cell for next iteration
-                diag_entry = column[i as usize];
+                diag_entry = column[i + 1];
 
-                column[i as usize].cost = cost;
-                column[i as usize].origin = origin;
-                column[i as usize].matches = matches;
+                column[i + 1].cost = cost;
+                column[i + 1].origin = origin;
+                column[i + 1].matches = matches;
             }
             if let Some(dpmatrix) = self.dpmatrix.as_mut() {
-                for i in 0..(last + 1) {
-                    dpmatrix.set_entry(i, j, column[i as usize].cost);
+                for i in 0..(last as usize + 1) {
+                    dpmatrix.set_entry(i, j, column[i].cost);
                 }
             }
             while last >= 0 && column[last as usize].cost > k {
