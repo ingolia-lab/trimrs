@@ -167,10 +167,12 @@ impl Location {
         self.querystop
     }
 
+    /// Number of matched positions in the alignment
     pub fn matches(&self) -> usize {
         self.matches
     }
 
+    /// Number of errors (cost) of the alignment
     pub fn errors(&self) -> usize {
         self.errors
     }
@@ -357,8 +359,7 @@ impl Aligner {
         })
     }
 
-    /// Returns the length of the reference sequence
-    pub fn m(&self) -> usize {
+    fn m(&self) -> usize {
         self.reference.len()
     }
 
@@ -377,15 +378,14 @@ impl Aligner {
 
     //         locate(query) -> (refstart, refstop, querystart, querystop, matches, errors)
 
-    //         Find the query within the reference associated with this aligner. The
-    //         intervals (querystart, querystop) and (refstart, refstop) give the
-    //         location of the match.
-
-    //         That is, the substrings query[querystart:querystop] and
-    //         self.reference[refstart:refstop] were found to align best to each other,
-    //         with the given number of matches and the given number of errors.
-
-    //         The alignment itself is not returned.
+    /// Find the alignment for query with the reference associated with this aligner.
+    ///
+    /// The intervals (querystart, querystop) and (refstart, refstop)
+    /// give the location of the match.  That is, the substrings
+    /// query[querystart:querystop] and
+    /// self.reference[refstart:refstop] were found to align best to
+    /// each other, with the given number of matches and the given
+    /// number of errors. The alignment itself is not returned.
     pub fn locate(&mut self, query: &[u8]) -> Option<Location> {
         let s1 = &self.breference;
         let m = self.m();
