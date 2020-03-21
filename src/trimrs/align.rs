@@ -136,9 +136,9 @@ impl AlignMatching {
 /// included, i.e., _start_ to (_stop_-1) inclusive.
 #[derive(PartialEq,Eq,PartialOrd,Ord,Debug,Clone)]
 pub struct Location {
-    refstart: isize,
+    refstart: usize,
     refstop: usize,
-    querystart: isize,
+    querystart: usize,
     querystop: usize,
     matches: isize,
     errors: usize,
@@ -146,7 +146,7 @@ pub struct Location {
 
 impl Location {
     /// Starting position on reference sequence
-    pub fn refstart(&self) -> isize {
+    pub fn refstart(&self) -> usize {
         self.refstart
     }
 
@@ -157,7 +157,7 @@ impl Location {
     }
 
     /// Starting position on the query sequence
-    pub fn querystart(&self) -> isize {
+    pub fn querystart(&self) -> usize {
         self.querystart
     }
 
@@ -677,14 +677,14 @@ impl Aligner {
         match best.origin {
             Origin::QueryStart(start) => {
                 refstart = 0;
-                querystart = start as isize;
+                querystart = start;
             },
             Origin::RefStart(start) => {
-                refstart = start as isize;
+                refstart = start;
                 querystart = 0;
             },
         };
-        assert!(best.ref_stop > refstart as usize); // # Do not return empty alignments.
+        assert!(best.ref_stop > refstart); // # Do not return empty alignments.
         return Some(
             Location {
                 refstart: refstart,

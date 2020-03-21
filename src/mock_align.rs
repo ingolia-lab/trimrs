@@ -331,9 +331,9 @@ fn test_align(reference: &[u8],
     let new_actual_equals_expected
         = if let Some(new_actual_location) = &new_actual {
             if let Some((refstart, refstop, querystart, querystop, matches, errors)) = expected {
-                refstart == new_actual_location.refstart()
+                refstart == new_actual_location.refstart() as isize
                     && refstop == new_actual_location.refstop() as isize
-                    && querystart == new_actual_location.querystart()
+                    && querystart == new_actual_location.querystart() as isize
                     && querystop == new_actual_location.querystop() as isize
                     && matches == new_actual_location.matches()
                     && errors == new_actual_location.errors() as isize
