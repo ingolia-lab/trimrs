@@ -20,7 +20,7 @@ impl std::default::Default for Origin {
 #[derive(Clone, Copy, Debug, Default)]
 struct Entry {
     cost: usize,
-    matches: isize,
+    matches: usize,
     origin: Origin,
 }
 
@@ -28,7 +28,7 @@ struct Entry {
 struct Match {
     origin: Origin,
     cost: usize,
-    matches: isize,
+    matches: usize,
     ref_stop: usize,
     query_stop: usize,
 }
@@ -140,7 +140,7 @@ pub struct Location {
     refstop: usize,
     querystart: usize,
     querystop: usize,
-    matches: isize,
+    matches: usize,
     errors: usize,
 }
 
@@ -167,7 +167,7 @@ impl Location {
         self.querystop
     }
 
-    pub fn matches(&self) -> isize {
+    pub fn matches(&self) -> usize {
         self.matches
     }
 
@@ -197,7 +197,7 @@ pub struct AlignerConf {
     pub indel_cost: usize,
 
     /// Minimum overlap to report a match
-    pub min_overlap: isize,
+    pub min_overlap: usize,
 }
     
 
@@ -280,7 +280,7 @@ pub struct Aligner {
     query_ends: AlignEnds,
     insertion_cost: usize,
     deletion_cost: usize,
-    min_overlap: isize,
+    min_overlap: usize,
     matching: AlignMatching,
     debug: bool,
     dpmatrix: Option<DPMatrix>,
@@ -599,7 +599,7 @@ impl Aligner {
                 };
                 let cost = column[m].cost;
                 let matches = column[m].matches;
-                if length >= self.min_overlap
+                if length >= self.min_overlap as isize
                     && (cost as f64) <= (cur_effective_length as f64) * max_error_rate
                     && (matches > best.matches || (matches == best.matches && cost < best.cost))
                 {
@@ -609,7 +609,7 @@ impl Aligner {
                     best.origin = column[m].origin;
                     best.ref_stop = m;
                     best.query_stop = j;
-                    if cost == 0 && matches == m as isize {
+                    if cost == 0 && matches == m {
                         // # exact match, stop early
                         break;
                     }
@@ -651,7 +651,7 @@ impl Aligner {
                 assert!(cur_effective_length <= length);
                 assert!(cur_effective_length <= self.effective_length);
 
-                if length >= self.min_overlap
+                if length >= self.min_overlap as isize
                     && (cost as f64) <= cur_effective_length as f64 * max_error_rate
                     && (matches > best.matches || (matches == best.matches && cost < best.cost))
                 {
