@@ -1,4 +1,4 @@
 pub mod align;
 pub mod encode;
-mod output;
-mod trimming;
+pub mod output;
+pub mod trimming;

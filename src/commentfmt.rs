@@ -1,7 +1,7 @@
 use std::env;
 use std::fs;
 use std::io;
-use std::io::{Read,Write};
+use std::io::Write;
 use std::path::{PathBuf};
 
 fn main() -> io::Result<()> {

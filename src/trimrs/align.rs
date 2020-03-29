@@ -390,7 +390,6 @@ impl Aligner {
         let n = query.len();
         let column = &mut self.column;
         let max_error_rate = self.max_error_rate;
-        let stop_in_query = self.query_ends.stop_local();
 
         match self.matching {
             AlignMatching::QueryWildcard => {
@@ -621,7 +620,6 @@ impl Aligner {
                             Origin::QueryStart(_) => 0,
                             Origin::RefStart(r) => r,
                         };
-                        assert!(0 <= ref_start);
                         assert!(ref_start <= m);
                         length - (self.n_counts[i] - self.n_counts[ref_start])
                     } else {

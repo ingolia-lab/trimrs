@@ -616,10 +616,10 @@ impl <'a> Aligner<'a> {
     fn set_reference(&mut self, reference: &'a [u8])                            //     def _set_reference(self, str reference):
     {
 
-        let mut mem: Vec<Entry> = vec![Default::default(); reference.len() + 1];//         mem = <_Entry*> PyMem_Realloc(self.column, (len(reference) + 1) * sizeof(_Entry))
+        let mem: Vec<Entry> = vec![Default::default(); reference.len() + 1];    //         mem = <_Entry*> PyMem_Realloc(self.column, (len(reference) + 1) * sizeof(_Entry))
                                                                                 //         if not mem:
                                                                                 //             raise MemoryError()
-        let mut mem_nc: Vec<isize> = vec![Default::default(); reference.len() + 1];//         mem_nc = <int*> PyMem_Realloc(self.n_counts, (len(reference) + 1) * sizeof(int))
+        let mem_nc: Vec<isize> = vec![Default::default(); reference.len() + 1]; //         mem_nc = <int*> PyMem_Realloc(self.n_counts, (len(reference) + 1) * sizeof(int))
                                                                                 //         if not mem_nc:
                                                                                 //             raise MemoryError()
         self.column = mem;                                                      //         self.column = mem
@@ -716,8 +716,6 @@ impl <'a> Aligner<'a> {
                                                                                 //                 V
                                                                                 //                m
                                                                                 //         """
-        let mut i: isize;                                                       //         cdef int i, j
-        let mut j: isize;
         
                                                                                 //         # maximum no. of errors
         let k = (max_error_rate * m as f64).floor() as isize;                   //         cdef int k = <int> (max_error_rate * m)
@@ -825,7 +823,7 @@ impl <'a> Aligner<'a> {
                 for i in 1..(last+1) {                                          //                 for i in range(1, last + 1):
                     if compare_ascii {                                          //                     if compare_ascii:
                         characters_equal =                                      //                         characters_equal = (s1[i-1] == s2[j-1])
-                            (s1[(i-1) as usize] == s2[(j-1) as usize]); 
+                            s1[(i-1) as usize] == s2[(j-1) as usize]; 
                     } else {                                                    //                     else:
                         characters_equal =                                      //                         characters_equal = (s1[i-1] & s2[j-1]) != 0
                             (s1[(i-1) as usize] & s2[(j-1) as usize]) != 0; 
