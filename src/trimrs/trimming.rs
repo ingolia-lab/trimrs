@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::output::Fate;
 
 #[derive(Clone, Debug)]
@@ -10,7 +8,7 @@ pub struct Trimming<'a> {
     trim_start: usize,
     trim_len: usize,
     umi_indices: Vec<usize>,
-    read_tag: Option<Arc<String>>,
+    read_tag: Option<usize>,
     fate: Fate,
 }
 
@@ -30,11 +28,11 @@ impl <'a> Trimming<'a> {
     #[inline(always)]
     fn trim_end(&self) -> usize { self.trim_start + self.trim_len }
     
-    pub fn seq_curr(&self) -> &'a [u8] { &self.seq[self.trim_start..self.trim_end()] }
+    pub fn seq_trimmed(&self) -> &'a [u8] { &self.seq[self.trim_start..self.trim_end()] }
 
-    pub fn qual_curr(&self) -> Option<&'a [u8]> { self.qual.map(|q| &q[self.trim_start..self.trim_end()]) }
+    pub fn qual_trimmed(&self) -> Option<&'a [u8]> { self.qual.map(|q| &q[self.trim_start..self.trim_end()]) }
 
-    pub fn len_curr(&self) -> usize { self.trim_len }
+    pub fn len_trimmed(&self) -> usize { self.trim_len }
     
     pub fn seq_raw(&self) -> &'a [u8] { self.seq }
 
